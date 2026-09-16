@@ -21,20 +21,6 @@
       ]
     },
     {
-      "id": "demo-2",
-      "slug": "escalier-exposition",
-      "title": "Escalier exposition",
-      "showOnHome": true,
-      "homeLayout": "smallright",
-      "order": 2,
-      "images": [
-        {
-          "src": "/placeholders/02.jpg",
-          "caption": "Escalier exposition — scénographie, 2024"
-        }
-      ]
-    },
-    {
       "id": "demo-3",
       "slug": "salle-blanche",
       "title": "Salle blanche",
