@@ -49,9 +49,11 @@ export function ProjectForm({ project }: { project?: Project }) {
         .map((row, index) => ({ file: row.file, index }))
         .filter((row): row is { file: File; index: number } => Boolean(row.file));
 
-    // Ajouter les sources existantes par défaut
+    // Ajouter les sources existantes et les légendes éditées
     rows.forEach((row, index) => {
       formData.append(`existingSrc-${index}`, row.existingSrc);
+      const caption = (form.elements.namedItem(`caption-${index}`) as HTMLInputElement)?.value || "";
+      formData.append(`caption-${index}`, caption);
     });
 
     if (filesToUpload.length === 0) {
