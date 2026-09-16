@@ -1,4 +1,4 @@
-import { get, put } from "@vercel/blob";
+import { head, put } from "@vercel/blob";
 import type { SiteData } from "./types";
 
 const BLOB_KEY = "site.json";
@@ -20,27 +20,19 @@ export async function readSite(): Promise<SiteData> {
     return emptySite();
   }
 
-  let result;
-  try {
-    result = await get(BLOB_KEY, { access: "public", token });
-  } catch {
-    try {
-      result = await get(BLOB_KEY, { access: "private", useCache: false, token });
-    } catch (privateError) {
-      throw new Error(
-        `Impossible de lire ${BLOB_KEY} en public ou en privé.`,
-        { cause: privateError },
-      );
-    }
-  }
-
-  if (!result) {
+  const details = await head(BLOB_KEY, { token });
+  if (!details) {
     const site = emptySite();
     await writeSite(site);
     return site;
   }
 
-  return (await new Response(result.stream).json()) as SiteData;
+  const response = await fetch(details.downloadUrl, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
+  }
+
+  return (await response.json()) as SiteData;
 }
 
 export async function writeSite(data: SiteData) {
