@@ -2,6 +2,8 @@ import { Wysiwyg } from "@/components/Wysiwyg";
 import { saveAboutAction } from "@/lib/actions";
 import { readSite } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminAboutPage() {
   const site = await readSite();
 
