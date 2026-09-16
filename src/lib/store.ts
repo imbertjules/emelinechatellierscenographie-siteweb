@@ -1,4 +1,4 @@
-import { put, head } from "@vercel/blob";
+import { head, put } from "@vercel/blob";
 import type { SiteData } from "./types";
 
 const BLOB_KEY = "site.json";
@@ -20,23 +20,23 @@ export async function readSite(): Promise<SiteData> {
     return emptySite();
   }
 
-  try {
-    // head() récupère les métadonnées et l'URL, ou lève une erreur si le fichier n'existe pas encore
-    const details = await head(BLOB_KEY, { token });
-    if (details && details.url) {
-      const res = await fetch(details.url, { cache: "no-store" });
-      if (res.ok) {
-        return (await res.json()) as SiteData;
-      }
-    }
-  } catch {
-    // Le fichier n'existe pas encore sur le Blob, on l'initialise
+  const details = await head(BLOB_KEY, { token });
+  if (!details) {
     const site = emptySite();
     await writeSite(site);
     return site;
   }
 
-  return emptySite();
+  // The public Blob URL can remain cached after an overwrite. The upload date
+  // makes each version a distinct CDN cache key.
+  const url = new URL(details.url);
+  url.searchParams.set("v", details.uploadedAt.getTime().toString());
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
+  }
+
+  return (await response.json()) as SiteData;
 }
 
 export async function writeSite(data: SiteData) {
