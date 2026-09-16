@@ -27,7 +27,14 @@ export async function readSite(): Promise<SiteData> {
     return site;
   }
 
-  const response = await fetch(details.downloadUrl, { cache: "no-store" });
+  const downloadUrl = new URL(details.downloadUrl);
+  downloadUrl.searchParams.set("v", details.uploadedAt.getTime().toString());
+  const response = await fetch(downloadUrl, {
+    cache: "no-store",
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  });
   if (!response.ok) {
     throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
   }
