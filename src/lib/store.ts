@@ -27,15 +27,9 @@ export async function readSite(): Promise<SiteData> {
     return site;
   }
 
-  const downloadUrl = new URL(details.downloadUrl);
-  downloadUrl.searchParams.set("v", details.uploadedAt.getTime().toString());
-  const response = await fetch(downloadUrl, {
-    cache: "no-store",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "cache-control": "no-cache",
-    },
-  });
+  const url = new URL(details.url);
+  url.searchParams.set("v", details.uploadedAt.getTime().toString());
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
   }
@@ -55,7 +49,6 @@ export async function writeSite(data: SiteData) {
     access: "public",
     addRandomSuffix: false,
     allowOverwrite: true,
-    cacheControlMaxAge: 0,
     contentType: "application/json",
     token,
   });
