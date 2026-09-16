@@ -13,26 +13,34 @@ const emptySite = (): SiteData => ({
   projects: [],
 });
 
-export async function readSite(): Promise<SiteData> {
+export async function readSite(options: { strict?: boolean } = {}): Promise<SiteData> {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) {
     console.error("ERREUR CRITIQUE: BLOB_READ_WRITE_TOKEN manquant en prod.");
     return emptySite();
   }
 
-  const details = await head(BLOB_KEY, { token });
-  if (!details) {
-    const site = emptySite();
-    await writeSite(site);
-    return site;
-  }
+  try {
+    const details = await head(BLOB_KEY, { token });
+    if (!details) {
+      const site = emptySite();
+      await writeSite(site);
+      return site;
+    }
 
-  const response = await fetch(details.url, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
-  }
+    const response = await fetch(details.url, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
+    }
 
-  return (await response.json()) as SiteData;
+    return (await response.json()) as SiteData;
+  } catch (error) {
+    console.error("Impossible de lire les données du site dans Vercel Blob.", error);
+    if (options.strict) {
+      throw error;
+    }
+    return emptySite();
+  }
 }
 
 export async function writeSite(data: SiteData) {

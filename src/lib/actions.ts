@@ -35,7 +35,7 @@ export async function logoutAction() {
 
 export async function saveSettingsAction(formData: FormData) {
   await requireAdmin();
-  const site = await readSite();
+  const site = await readSite({ strict: true });
   site.settings = {
     name: String(formData.get("name") || "").trim() || site.settings.name,
     tagline: String(formData.get("tagline") || "").trim(),
@@ -48,7 +48,7 @@ export async function saveSettingsAction(formData: FormData) {
 
 export async function saveAboutAction(formData: FormData) {
   await requireAdmin();
-  const site = await readSite();
+  const site = await readSite({ strict: true });
   site.aboutHtml = String(formData.get("aboutHtml") || "");
   await writeSite(site);
   revalidatePublic();
@@ -82,7 +82,7 @@ async function imagesFromForm(formData: FormData, existing: ProjectImage[]) {
 
 export async function saveProjectAction(formData: FormData) {
   await requireAdmin();
-  const site = await readSite();
+  const site = await readSite({ strict: true });
   const id = String(formData.get("id") || "") || crypto.randomUUID();
   const title = String(formData.get("title") || "").trim();
 
@@ -121,7 +121,7 @@ export async function saveProjectAction(formData: FormData) {
 export async function deleteProjectAction(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") || "");
-  const site = await readSite();
+  const site = await readSite({ strict: true });
 
   const projectToDelete = site.projects.find((p) => p.id === id);
 
