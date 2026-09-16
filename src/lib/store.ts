@@ -14,41 +14,33 @@ const emptySite = (): SiteData => ({
   projects: [],
 });
 
-export async function readSite(options: { strict?: boolean } = {}): Promise<SiteData> {
+export async function readSite(): Promise<SiteData> {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) {
     console.error("ERREUR CRITIQUE: BLOB_READ_WRITE_TOKEN manquant en prod.");
     return emptySite();
   }
 
-  try {
-    const versioned = await list({ prefix: VERSIONED_PREFIX, limit: 100, token });
-    const latestVersion = versioned.blobs
-      .filter((blob) => blob.pathname.endsWith(".json"))
-      .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
-    const details = latestVersion || await head(BLOB_KEY, { token });
-    if (!details) {
-      const site = emptySite();
-      await writeSite(site);
-      return site;
-    }
-
-    const result = await get(details.pathname, {
-      access: "public",
-      token,
-    });
-    if (!result) {
-      throw new Error(`Blob introuvable: ${details.pathname}`);
-    }
-
-    return (await new Response(result.stream).json()) as SiteData;
-  } catch (error) {
-    console.error("Impossible de lire les données du site dans Vercel Blob.", error);
-    if (options.strict) {
-      throw error;
-    }
-    return emptySite();
+  const versioned = await list({ prefix: VERSIONED_PREFIX, limit: 100, token });
+  const latestVersion = versioned.blobs
+    .filter((blob) => blob.pathname.endsWith(".json"))
+    .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
+  const details = latestVersion || await head(BLOB_KEY, { token });
+  if (!details) {
+    const site = emptySite();
+    await writeSite(site);
+    return site;
   }
+
+  const result = await get(details.pathname, {
+    access: "public",
+    token,
+  });
+  if (!result) {
+    throw new Error(`Blob introuvable: ${details.pathname}`);
+  }
+
+  return (await new Response(result.stream).json()) as SiteData;
 }
 
 export async function writeSite(data: SiteData) {
