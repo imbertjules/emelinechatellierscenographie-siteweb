@@ -60,14 +60,17 @@ async function imagesFromForm(formData: FormData, existing: ProjectImage[]) {
     const src = String(formData.get(`existingSrc-${i}`) || "");
     const caption = String(formData.get(`caption-${i}`) || "");
     const file = formData.get(`file-${i}`);
+
     if (file instanceof File && file.size > 0) {
-      next.push({ src: await saveUpload(file), caption });
+      const uploadedUrl = await saveUpload(file);
+      next.push({ src: uploadedUrl, caption });
     } else if (src) {
       next.push({ src, caption });
     }
   }
 
-  if (next.length === 0 && existing[0]) {
+  // Si aucune image n'a pu être récupérée mais qu'il y en avait avant, on garde l'existant par sécurité
+  if (next.length === 0 && existing.length > 0) {
     return existing;
   }
 
@@ -79,15 +82,13 @@ export async function saveProjectAction(formData: FormData) {
   const site = await readSite();
   const id = String(formData.get("id") || "") || crypto.randomUUID();
   const title = String(formData.get("title") || "").trim();
+
   if (!title) {
     redirect("/admin/projets/nouveau");
   }
 
   const current = site.projects.find((p) => p.id === id);
   const images = await imagesFromForm(formData, current?.images || []);
-  if (images.length === 0) {
-    redirect(current ? `/admin/projets/${id}` : "/admin/projets/nouveau");
-  }
 
   const layout = String(formData.get("homeLayout") || "") as HomeLayout;
   const project: Project = {
@@ -96,15 +97,18 @@ export async function saveProjectAction(formData: FormData) {
     slug: slugify(title),
     showOnHome: formData.get("showOnHome") === "on",
     homeLayout: HOME_LAYOUTS.includes(layout)
-      ? layout
-      : HOME_LAYOUTS[site.projects.length % HOME_LAYOUTS.length],
+        ? layout
+        : HOME_LAYOUTS[site.projects.length % HOME_LAYOUTS.length],
     order: Number(formData.get("order") || current?.order || site.projects.length + 1),
     images,
   };
 
   const index = site.projects.findIndex((p) => p.id === id);
-  if (index >= 0) site.projects[index] = project;
-  else site.projects.push(project);
+  if (index >= 0) {
+    site.projects[index] = project;
+  } else {
+    site.projects.push(project);
+  }
 
   await writeSite(site);
   revalidatePublic();
@@ -116,10 +120,8 @@ export async function deleteProjectAction(formData: FormData) {
   const id = String(formData.get("id") || "");
   const site = await readSite();
 
-  // Trouve le projet avant de le supprimer pour récupérer ses images
   const projectToDelete = site.projects.find((p) => p.id === id);
 
-  // Supprime les images du Vercel Blob si elles y sont stockées
   if (projectToDelete && process.env.BLOB_READ_WRITE_TOKEN) {
     for (const img of projectToDelete.images) {
       if (img.src.includes("vercel-storage.com") || img.src.includes("public.blob.vercel-storage.com")) {
@@ -132,7 +134,6 @@ export async function deleteProjectAction(formData: FormData) {
     }
   }
 
-  // Retire le projet de la liste
   site.projects = site.projects.filter((p) => p.id !== id);
   await writeSite(site);
   revalidatePublic();
