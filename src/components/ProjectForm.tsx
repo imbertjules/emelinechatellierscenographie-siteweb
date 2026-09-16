@@ -14,6 +14,43 @@ type Row = {
   file?: File;
 };
 
+async function optimizeImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
+    return file;
+  }
+
+  const image = await createImageBitmap(file);
+  const maxDimension = 2400;
+  const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    image.close();
+    throw new Error("Impossible de préparer l’image.");
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  image.close();
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", 0.82),
+  );
+  if (!blob) {
+    throw new Error("Impossible de compresser l’image.");
+  }
+
+  const basename = file.name.replace(/\.[^.]+$/, "") || "image";
+  return new File([blob], `${basename}.jpg`, {
+    type: "image/jpeg",
+    lastModified: Date.now(),
+  });
+}
+
 export function ProjectForm({ project }: { project?: Project }) {
   const [rows, setRows] = useState<Row[]>(
       project?.images.length
@@ -32,6 +69,10 @@ export function ProjectForm({ project }: { project?: Project }) {
     const formData = new FormData(form);
     formData.set("imageCount", rows.length.toString());
 
+    // Les images sont téléversées directement depuis le navigateur vers Blob.
+    // Ne pas les renvoyer à l'action serveur une seconde fois.
+    rows.forEach((_, index) => formData.delete(`file-${index}`));
+
     const filesToUpload = rows
         .map((row, index) => ({ file: row.file, index }))
         .filter((row): row is { file: File; index: number } => Boolean(row.file));
@@ -47,10 +88,11 @@ export function ProjectForm({ project }: { project?: Project }) {
     try {
       const uploaded = await Promise.all(
           filesToUpload.map(async ({ file, index }) => {
-            const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-            const blob = await upload(`uploads/${Date.now()}-${index}-${filename}`, file, {
-              access: "public",
-              contentType: file.type || undefined,
+              const optimizedFile = await optimizeImage(file);
+              const filename = optimizedFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+              const blob = await upload(`uploads/${Date.now()}-${index}-${filename}`, optimizedFile, {
+                access: "public",
+                contentType: optimizedFile.type || undefined,
               handleUploadUrl: "/api/upload",
               multipart: true,
             });
