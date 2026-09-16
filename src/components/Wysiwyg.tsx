@@ -35,12 +35,15 @@ export function Wysiwyg({ name, initialHtml }: { name: string; initialHtml: stri
 
     update();
     editor.on("update", update);
-    return () => editor.off("update", update);
+    return () => {
+      editor.off("update", update);
+    };
   }, [editor]);
 
   if (!editor) return <div className="editor-loading">Chargement de l’éditeur…</div>;
 
   function editLink() {
+    if (!editor) return;
     const previousUrl = editor.getAttributes("link").href as string | undefined;
     const url = window.prompt("Adresse du lien", previousUrl || "https://");
     if (url === null) return;
