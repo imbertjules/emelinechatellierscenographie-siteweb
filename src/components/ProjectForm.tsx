@@ -27,32 +27,38 @@ export function ProjectForm({ project }: { project?: Project }) {
   const [uploadError, setUploadError] = useState("");
 
   async function submitProject(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); // <--- On l'met TOUJOURS en premier
+
     const submitter = (event.nativeEvent as SubmitEvent)
-      .submitter as HTMLButtonElement | null;
+        .submitter as HTMLButtonElement | null;
     if (submitter?.dataset.intent === "delete") return;
 
     const filesToUpload = rows
-      .map((row, index) => ({ file: row.file, index }))
-      .filter((row): row is { file: File; index: number } => Boolean(row.file));
+        .map((row, index) => ({ file: row.file, index }))
+        .filter((row): row is { file: File; index: number } => Boolean(row.file));
 
-    if (filesToUpload.length === 0) return;
+    // S'il n'y a pas de nouvelle image, on envoie directement le formulaire par code
+    if (filesToUpload.length === 0) {
+      const formData = new FormData(event.currentTarget);
+      await saveProjectAction(formData);
+      return;
+    }
 
-    event.preventDefault();
     setUploading(true);
     setUploadError("");
 
     try {
       const uploaded = await Promise.all(
-        filesToUpload.map(async ({ file, index }) => {
-          const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-          const blob = await upload(`uploads/${Date.now()}-${index}-${filename}`, file, {
-            access: "public",
-            contentType: file.type || undefined,
-            handleUploadUrl: "/api/upload",
-            multipart: true,
-          });
-          return { index, url: blob.url };
-        }),
+          filesToUpload.map(async ({ file, index }) => {
+            const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+            const blob = await upload(`uploads/${Date.now()}-${index}-${filename}`, file, {
+              access: "public",
+              contentType: file.type || undefined,
+              handleUploadUrl: "/api/upload",
+              multipart: true,
+            });
+            return { index, url: blob.url };
+          }),
       );
 
       const formData = new FormData(event.currentTarget);
@@ -62,7 +68,7 @@ export function ProjectForm({ project }: { project?: Project }) {
       await saveProjectAction(formData);
     } catch (error) {
       setUploadError(
-        error instanceof Error ? error.message : "L’envoi des images a échoué.",
+          error instanceof Error ? error.message : "L’envoi des images a échoué.",
       );
       setUploading(false);
     }
