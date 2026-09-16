@@ -1,8 +1,7 @@
-import { head, list, put } from "@vercel/blob";
+import { head, put } from "@vercel/blob";
 import type { SiteData } from "./types";
 
 const BLOB_KEY = "site.json";
-const VERSIONED_PREFIX = "site-";
 
 const emptySite = (): SiteData => ({
   settings: {
@@ -21,30 +20,19 @@ export async function readSite(): Promise<SiteData> {
     return emptySite();
   }
 
-  try {
-    const versioned = await list({
-      prefix: VERSIONED_PREFIX,
-      limit: 100,
-      token,
-    });
-    const latestVersion = versioned.blobs
-      .filter((blob) => blob.pathname.endsWith(".json"))
-      .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
-    const details = latestVersion || await head(BLOB_KEY, { token });
-
-    if (details && details.url) {
-      const response = await fetch(details.url, { cache: "no-store" });
-      if (response.ok) {
-        return (await response.json()) as SiteData;
-      }
-    }
-  } catch {
+  const details = await head(BLOB_KEY, { token });
+  if (!details) {
     const site = emptySite();
     await writeSite(site);
     return site;
   }
 
-  return emptySite();
+  const response = await fetch(details.url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
+  }
+
+  return (await response.json()) as SiteData;
 }
 
 export async function writeSite(data: SiteData) {
