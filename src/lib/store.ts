@@ -20,10 +20,19 @@ export async function readSite(): Promise<SiteData> {
     return emptySite();
   }
 
-  const result = await get(BLOB_KEY, {
-    access: "public",
-    token,
-  });
+  let result;
+  try {
+    result = await get(BLOB_KEY, { access: "public", token });
+  } catch {
+    try {
+      result = await get(BLOB_KEY, { access: "private", useCache: false, token });
+    } catch (privateError) {
+      throw new Error(
+        `Impossible de lire ${BLOB_KEY} en public ou en privé.`,
+        { cause: privateError },
+      );
+    }
+  }
 
   if (!result) {
     const site = emptySite();
