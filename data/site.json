@@ -1,0 +1,66 @@
+{
+  "settings": {
+    "name": "Emeline Chatellier",
+    "tagline": "SCENOGRAPHIE",
+    "email": "contact@emelinechatellierscenographie.fr"
+  },
+  "aboutHtml": "<p>Diplômée de la HEAR (Haute Ecole des Arts du Rhin, Les Arts Décoratifs de Strasbourg), Émeline Chatellier exerce en tant que scénographe depuis 2015. Elle a intégré la direction artistique du groupe Le Bon Marché Rive Gauche pendant 8 ans et enseigné en parallèle à l'école de Condé Paris depuis 2022.</p><p>En 2024, animée par la recherche et l'expérimentation, elle développe son propre studio de conception scénographie pour proposer des expositions sur-mesure et éco-conçues.</p><p>Les domaines d’intervention :</p><p>Exposition, muséographie</p><p>Retail, pop-up</p><p>Installation</p><p>Design mobilier et de médiation</p><p>Spectacles vivants, festivals</p><p>Set design</p><p>Salons professionnels</p><p></p><p>Elle est membre des Augures Lab, un réseau professionnel, collaboratif et prospectif pour penser l’écoscénographie dans le secteur culturel.</p><p></p><p></p>",
+  "projects": [
+    {
+      "id": "demo-1",
+      "title": "Le Quadrilatère",
+      "slug": "le-quadrilatere",
+      "showOnHome": true,
+      "homeLayout": "mediumleft",
+      "order": 1,
+      "images": [
+        {
+          "src": "/uploads/1789561039942-Exposition-Andr--Hermant--architecte-iconographe--Le-Quadrilat-re--2025---Frederic-Iovino-pour-Le-Quadrilat-re-0026---bis.jpg",
+          "caption": "Installation \"Formes Utiles\" exposition André Hermant architecte iconographe au Quadrilatère, 2025"
+        }
+      ]
+    },
+    {
+      "id": "demo-2",
+      "slug": "escalier-exposition",
+      "title": "Escalier exposition",
+      "showOnHome": true,
+      "homeLayout": "smallright",
+      "order": 2,
+      "images": [
+        {
+          "src": "/placeholders/02.jpg",
+          "caption": "Escalier exposition — scénographie, 2024"
+        }
+      ]
+    },
+    {
+      "id": "demo-3",
+      "slug": "salle-blanche",
+      "title": "Salle blanche",
+      "showOnHome": true,
+      "homeLayout": "largeleft",
+      "order": 3,
+      "images": [
+        {
+          "src": "/placeholders/03.jpg",
+          "caption": "Salle blanche — muséographie, 2023"
+        }
+      ]
+    },
+    {
+      "id": "demo-4",
+      "slug": "atelier-lumiere",
+      "title": "Atelier lumière",
+      "showOnHome": true,
+      "homeLayout": "mediumright",
+      "order": 4,
+      "images": [
+        {
+          "src": "/placeholders/04.jpg",
+          "caption": "Atelier lumière — installation, 2023"
+        }
+      ]
+    }
+  ]
+}
