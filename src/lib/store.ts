@@ -1,8 +1,7 @@
-import { head, list, put } from "@vercel/blob";
+import { head, put } from "@vercel/blob";
 import type { SiteData } from "./types";
 
 const BLOB_KEY = "site.json";
-const VERSIONED_PREFIX = "site-";
 
 const emptySite = (): SiteData => ({
   settings: {
@@ -21,21 +20,19 @@ export async function readSite(): Promise<SiteData> {
     return emptySite();
   }
 
-  const versions = await list({ prefix: VERSIONED_PREFIX, limit: 100, token });
-  const latestVersion = versions.blobs
-    .filter((blob) => blob.pathname.endsWith(".json"))
-    .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
-  const details = latestVersion || await head(BLOB_KEY, { token });
+  const details = await head(BLOB_KEY, { token });
   if (!details) {
     const site = emptySite();
     await writeSite(site);
     return site;
   }
 
-  // Versioned blobs are immutable, so their URL is already a cache key.
-  const response = await fetch(details.url, { cache: "no-store" });
+  const response = await fetch(details.url, {
+    cache: "no-store",
+    headers: { "cache-control": "no-cache" },
+  });
   if (!response.ok) {
-    throw new Error(`Impossible de lire ${details.pathname}: ${response.status}`);
+    throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
   }
 
   return (await response.json()) as SiteData;
@@ -49,9 +46,10 @@ export async function writeSite(data: SiteData) {
 
   const payload = JSON.stringify(data, null, 2);
 
-  await put(`${VERSIONED_PREFIX}${Date.now()}-${crypto.randomUUID()}.json`, payload, {
+  await put(BLOB_KEY, payload, {
     access: "public",
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: "application/json",
     token,
   });
