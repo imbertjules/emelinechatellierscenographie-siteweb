@@ -52,8 +52,7 @@ export function ProjectForm({ project }: { project?: Project }) {
     // Ajouter les sources existantes et les légendes éditées
     rows.forEach((row, index) => {
       formData.append(`existingSrc-${index}`, row.existingSrc);
-      const caption = (form.elements.namedItem(`caption-${index}`) as HTMLInputElement)?.value || "";
-      formData.append(`caption-${index}`, caption);
+      formData.append(`caption-${index}`, row.caption);
     });
 
     if (filesToUpload.length === 0) {
@@ -178,7 +177,17 @@ export function ProjectForm({ project }: { project?: Project }) {
                 </label>
                 <div style={{ display: "grid", gap: 6 }}>
                   <span>Légende sous la photo</span>
-                  <Wysiwyg name={`caption-${index}`} initialHtml={row.caption} />
+                  <Wysiwyg
+                      name={`caption-${index}`}
+                      initialHtml={row.caption}
+                      onChange={(caption) =>
+                          setRows((current) =>
+                              current.map((item, i) =>
+                                  i === index ? { ...item, caption } : item,
+                              ),
+                          )
+                      }
+                  />
                 </div>
                 {rows.length > 1 ? (
                     <button

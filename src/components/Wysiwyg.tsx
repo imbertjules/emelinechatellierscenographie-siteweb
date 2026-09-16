@@ -7,8 +7,17 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 
-export function Wysiwyg({ name, initialHtml }: { name: string; initialHtml: string }) {
+export function Wysiwyg({
+  name,
+  initialHtml,
+  onChange,
+}: {
+  name: string;
+  initialHtml: string;
+  onChange?: (html: string) => void;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const onChangeRef = useRef(onChange);
   const [, refreshToolbar] = useState(0);
   const editor = useEditor({
     immediatelyRender: false,
@@ -26,10 +35,16 @@ export function Wysiwyg({ name, initialHtml }: { name: string; initialHtml: stri
   });
 
   useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
     if (!editor) return;
 
     const update = () => {
-      if (inputRef.current) inputRef.current.value = editor.getHTML();
+      const html = editor.getHTML();
+      if (inputRef.current) inputRef.current.value = html;
+      onChangeRef.current?.(html);
       refreshToolbar((value) => value + 1);
     };
 
