@@ -13,7 +13,7 @@ const emptySite = (): SiteData => ({
     email: "",
   },
   aboutHtml:
-    "<p>Écrivez ici votre à propos depuis le backoffice.</p>",
+      "<p>Écrivez ici votre à propos depuis le backoffice.</p>",
   projects: [],
 });
 
@@ -23,11 +23,18 @@ function hasBlob() {
 
 export async function readSite(): Promise<SiteData> {
   if (hasBlob()) {
-    const { blobs } = await list({ prefix: BLOB_KEY });
-    const file = blobs.find((b) => b.pathname === BLOB_KEY) ?? blobs[0];
-    if (file) {
-      const res = await fetch(file.url, { cache: "no-store" });
-      if (res.ok) return (await res.json()) as SiteData;
+    try {
+      const { blobs } = await list({
+        prefix: BLOB_KEY,
+        token: process.env.BLOB_READ_WRITE_TOKEN
+      });
+      const file = blobs.find((b) => b.pathname === BLOB_KEY) ?? blobs[0];
+      if (file) {
+        const res = await fetch(file.url, { cache: "no-store" });
+        if (res.ok) return (await res.json()) as SiteData;
+      }
+    } catch (e) {
+      console.error("Erreur lecture blob site.json:", e);
     }
   }
 
@@ -50,6 +57,7 @@ export async function writeSite(data: SiteData) {
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     });
     return;
   }
@@ -60,10 +68,10 @@ export async function writeSite(data: SiteData) {
 
 export function slugify(value: string) {
   return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 80) || "projet";
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 80) || "projet";
 }
