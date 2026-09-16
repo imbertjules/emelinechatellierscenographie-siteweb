@@ -32,11 +32,10 @@ export async function readSite(): Promise<SiteData> {
     return site;
   }
 
-  const url = new URL(details.url);
-  url.searchParams.set("v", details.uploadedAt.getTime().toString());
-  const response = await fetch(url, { cache: "no-store" });
+  // Versioned blobs are immutable, so their URL is already a cache key.
+  const response = await fetch(details.url, { cache: "no-store" });
   if (!response.ok) {
-    throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
+    throw new Error(`Impossible de lire ${details.pathname}: ${response.status}`);
   }
 
   return (await response.json()) as SiteData;
