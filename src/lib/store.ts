@@ -21,7 +21,10 @@ export async function readSite(): Promise<SiteData> {
   }
 
   const result = await get(BLOB_KEY, {
-    access: "public",
+    // site.json is server-only data; read it through the authenticated
+    // private Blob endpoint instead of the public CDN URL.
+    access: "private",
+    useCache: false,
     token,
   });
 
@@ -43,7 +46,7 @@ export async function writeSite(data: SiteData) {
   const payload = JSON.stringify(data, null, 2);
 
   await put(BLOB_KEY, payload, {
-    access: "public",
+    access: "private",
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: "application/json",
