@@ -1,4 +1,4 @@
-import { head, put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 import type { SiteData } from "./types";
 
 const BLOB_KEY = "site.json";
@@ -20,23 +20,18 @@ export async function readSite(): Promise<SiteData> {
     return emptySite();
   }
 
-  const details = await head(BLOB_KEY, { token });
-  if (!details) {
+  const result = await get(BLOB_KEY, {
+    access: "public",
+    token,
+  });
+
+  if (!result) {
     const site = emptySite();
     await writeSite(site);
     return site;
   }
 
-  // The public Blob URL can remain cached after an overwrite. The upload date
-  // makes each version a distinct CDN cache key.
-  const url = new URL(details.url);
-  url.searchParams.set("v", details.uploadedAt.getTime().toString());
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
-  }
-
-  return (await response.json()) as SiteData;
+  return (await new Response(result.stream).json()) as SiteData;
 }
 
 export async function writeSite(data: SiteData) {
