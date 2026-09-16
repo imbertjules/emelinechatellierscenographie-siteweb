@@ -21,6 +21,12 @@ export default async function HomePage() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={project.images[0].src} alt={project.title} />
+            {project.images[0].caption ? (
+              <div
+                className="home-caption"
+                dangerouslySetInnerHTML={{ __html: project.images[0].caption }}
+              />
+            ) : null}
           </a>
         ))}
       </section>

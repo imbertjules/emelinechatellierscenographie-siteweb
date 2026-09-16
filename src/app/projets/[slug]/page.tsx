@@ -27,9 +27,12 @@ export default async function ProjectPage({
       {project.images.map((image) => (
         <figure key={image.src} className="project-figure">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image.src} alt={image.caption || project.title} />
+          <img src={image.src} alt={project.title} />
           {image.caption ? (
-            <figcaption className="project-caption">{image.caption}</figcaption>
+            <figcaption
+              className="project-caption"
+              dangerouslySetInnerHTML={{ __html: image.caption }}
+            />
           ) : null}
         </figure>
       ))}

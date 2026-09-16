@@ -17,7 +17,7 @@ Ouvrir [http://localhost:3000](http://localhost:3000) et [http://localhost:3000/
 
 1. Importer le repo dans Vercel (framework Next.js).
 2. Variable `ADMIN_PASSWORD`.
-3. Créer un Blob Store sur le projet pour que les uploads et le contenu survivent en production.
+3. Créer un Blob Store sur le projet pour que les images et le contenu survivent en production. Les images du backoffice sont envoyées directement depuis le navigateur vers Blob : elles ne passent pas par le serveur Vercel et ne subissent donc pas sa limite d’envoi. Les fichiers image (JPEG, PNG, WebP, AVIF, HEIC, etc.) sont acceptés ; leur affichage dépend ensuite de la compatibilité du navigateur.
 # emelinechatellierscenographie-siteweb
 # emelinechatellierscenographie-siteweb
 # emelinechatellierscenographie-siteweb

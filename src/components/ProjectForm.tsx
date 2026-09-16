@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { HOME_LAYOUTS } from "@/lib/types";
-import type { HomeLayout, Project } from "@/lib/types";
+import type { Project } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
+import { Wysiwyg } from "@/components/Wysiwyg";
 
 type Row = {
   existingSrc: string;
   caption: string;
   preview?: string;
+  file?: File;
 };
 
 export function ProjectForm({ project }: { project?: Project }) {
@@ -20,9 +23,57 @@ export function ProjectForm({ project }: { project?: Project }) {
         }))
       : [{ existingSrc: "", caption: "" }],
   );
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  async function submitProject(event: React.FormEvent<HTMLFormElement>) {
+    const submitter = (event.nativeEvent as SubmitEvent)
+      .submitter as HTMLButtonElement | null;
+    if (submitter?.dataset.intent === "delete") return;
+
+    const filesToUpload = rows
+      .map((row, index) => ({ file: row.file, index }))
+      .filter((row): row is { file: File; index: number } => Boolean(row.file));
+
+    if (filesToUpload.length === 0) return;
+
+    event.preventDefault();
+    setUploading(true);
+    setUploadError("");
+
+    try {
+      const uploaded = await Promise.all(
+        filesToUpload.map(async ({ file, index }) => {
+          const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+          const blob = await upload(`uploads/${Date.now()}-${index}-${filename}`, file, {
+            access: "public",
+            contentType: file.type || undefined,
+            handleUploadUrl: "/api/upload",
+            multipart: true,
+          });
+          return { index, url: blob.url };
+        }),
+      );
+
+      const formData = new FormData(event.currentTarget);
+      for (const { index, url } of uploaded) {
+        formData.set(`existingSrc-${index}`, url);
+      }
+      await saveProjectAction(formData);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "L’envoi des images a échoué.",
+      );
+      setUploading(false);
+    }
+  }
 
   return (
-    <form action={saveProjectAction} style={{ display: "grid", gap: 18, maxWidth: 720 }}>
+    <form
+      action={saveProjectAction}
+      onSubmit={submitProject}
+      style={{ display: "grid", gap: 18, maxWidth: 720 }}
+    >
       <input type="hidden" name="id" value={project?.id || ""} />
       <input type="hidden" name="imageCount" value={rows.length} />
 
@@ -47,7 +98,7 @@ export function ProjectForm({ project }: { project?: Project }) {
       </label>
 
       <label style={{ display: "grid", gap: 6 }}>
-        Position de la photo (grille type Roll)
+        Position de la photo dans la grille
         <select
           name="homeLayout"
           defaultValue={project?.homeLayout ?? "mediumleft"}
@@ -90,7 +141,6 @@ export function ProjectForm({ project }: { project?: Project }) {
               Image
               <input
                 type="file"
-                name={`file-${index}`}
                 accept="image/*"
                 required={!row.existingSrc}
                 onChange={(event) => {
@@ -99,21 +149,16 @@ export function ProjectForm({ project }: { project?: Project }) {
                   const preview = URL.createObjectURL(file);
                   setRows((current) =>
                     current.map((item, i) =>
-                      i === index ? { ...item, preview } : item,
+                      i === index ? { ...item, file, preview } : item,
                     ),
                   );
                 }}
               />
             </label>
-            <label style={{ display: "grid", gap: 6 }}>
-              Légende (sous la photo)
-              <textarea
-                name={`caption-${index}`}
-                defaultValue={row.caption}
-                rows={3}
-                style={inputStyle}
-              />
-            </label>
+            <div style={{ display: "grid", gap: 6 }}>
+              <span>Légende sous la photo</span>
+              <Wysiwyg name={`caption-${index}`} initialHtml={row.caption} />
+            </div>
             {rows.length > 1 ? (
               <button
                 type="button"
@@ -138,13 +183,16 @@ export function ProjectForm({ project }: { project?: Project }) {
       </button>
 
       <button type="submit" style={solidButton}>
-        Enregistrer
+        {uploading ? "Envoi des images…" : "Enregistrer"}
       </button>
+
+      {uploadError ? <p style={{ margin: 0, color: "#a10" }}>{uploadError}</p> : null}
 
       {project ? (
         <button
           type="submit"
           formAction={deleteProjectAction}
+          data-intent="delete"
           style={{ ...ghostButton, color: "#a10" }}
           onClick={(event) => {
             if (!confirm("Supprimer ce projet ?")) event.preventDefault();
