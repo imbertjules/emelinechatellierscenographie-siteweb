@@ -1,4 +1,4 @@
-import { head, put } from "@vercel/blob";
+import { get, head, put } from "@vercel/blob";
 import type { SiteData } from "./types";
 
 const BLOB_KEY = "site.json";
@@ -27,15 +27,15 @@ export async function readSite(): Promise<SiteData> {
     return site;
   }
 
-  const response = await fetch(details.url, {
-    cache: "no-store",
-    headers: { "cache-control": "no-cache" },
+  const result = await get(details.url, {
+    access: "public",
+    token,
   });
-  if (!response.ok) {
-    throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
+  if (!result) {
+    throw new Error(`Impossible de lire ${BLOB_KEY}: contenu introuvable.`);
   }
 
-  return (await response.json()) as SiteData;
+  return (await new Response(result.stream).json()) as SiteData;
 }
 
 export async function writeSite(data: SiteData) {
