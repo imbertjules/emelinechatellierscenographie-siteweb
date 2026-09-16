@@ -14,6 +14,8 @@ function revalidatePublic() {
   revalidatePath("/a-propos");
   revalidatePath("/projets", "layout");
   revalidatePath("/admin/projets");
+  revalidatePath("/admin/a-propos");
+  revalidatePath("/admin/reglages");
   revalidatePath("/admin", "layout");
 }
 

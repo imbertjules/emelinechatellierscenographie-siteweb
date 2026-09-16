@@ -33,6 +33,7 @@ export async function readSite(): Promise<SiteData> {
     cache: "no-store",
     headers: {
       authorization: `Bearer ${token}`,
+      "cache-control": "no-cache",
     },
   });
   if (!response.ok) {
@@ -54,6 +55,7 @@ export async function writeSite(data: SiteData) {
     access: "public",
     addRandomSuffix: false,
     allowOverwrite: true,
+    cacheControlMaxAge: 0,
     contentType: "application/json",
     token,
   });
