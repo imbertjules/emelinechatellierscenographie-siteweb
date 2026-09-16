@@ -13,6 +13,7 @@ function revalidatePublic() {
   revalidatePath("/");
   revalidatePath("/a-propos");
   revalidatePath("/projets", "layout");
+  revalidatePath("/admin/projets");
   revalidatePath("/admin", "layout");
 }
 

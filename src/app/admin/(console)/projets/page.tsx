@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { readSite } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminProjectsPage() {
   const site = await readSite();
   const projects = [...site.projects].sort((a, b) => a.order - b.order);
