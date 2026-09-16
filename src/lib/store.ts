@@ -1,9 +1,6 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
-import path from "path";
 import { put, list } from "@vercel/blob";
 import type { SiteData } from "./types";
 
-const DATA_PATH = path.join(process.cwd(), "data", "site.json");
 const BLOB_KEY = "site.json";
 
 const emptySite = (): SiteData => ({
@@ -17,53 +14,57 @@ const emptySite = (): SiteData => ({
   projects: [],
 });
 
-function hasBlob() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-}
-
 export async function readSite(): Promise<SiteData> {
-  if (hasBlob()) {
-    try {
-      const { blobs } = await list({
-        prefix: BLOB_KEY,
-        token: process.env.BLOB_READ_WRITE_TOKEN
-      });
-      const file = blobs.find((b) => b.pathname === BLOB_KEY) ?? blobs[0];
-      if (file) {
-        const res = await fetch(file.url, { cache: "no-store" });
-        if (res.ok) return (await res.json()) as SiteData;
-      }
-    } catch (e) {
-      console.error("Erreur lecture blob site.json:", e);
-    }
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    console.error("ERREUR: BLOB_READ_WRITE_TOKEN est manquant !");
+    return emptySite();
   }
 
   try {
-    const raw = await readFile(DATA_PATH, "utf8");
-    return JSON.parse(raw) as SiteData;
-  } catch {
-    const site = emptySite();
-    await writeSite(site);
-    return site;
+    const { blobs } = await list({
+      prefix: BLOB_KEY,
+      token: token
+    });
+    const file = blobs.find((b) => b.pathname === BLOB_KEY) ?? blobs[0];
+
+    if (file) {
+      const res = await fetch(file.url, { cache: "no-store" });
+      if (res.ok) {
+        return (await res.json()) as SiteData;
+      }
+    }
+  } catch (e) {
+    console.error("Erreur lors de la lecture de site.json sur le Blob:", e);
   }
+
+  // Si le fichier n'existe pas encore sur le Blob, on l'initialise
+  const site = emptySite();
+  await writeSite(site);
+  return site;
 }
 
 export async function writeSite(data: SiteData) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    throw new Error("ERREUR CRITIQUE: BLOB_READ_WRITE_TOKEN est introuvable sur Vercel.");
+  }
+
   const payload = JSON.stringify(data, null, 2);
 
-  if (hasBlob()) {
+  try {
     await put(BLOB_KEY, payload, {
       access: "public",
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+      token: token,
     });
-    return;
+    console.log("Succès : site.json a bien été mis à jour sur Vercel Blob.");
+  } catch (err) {
+    console.error("Erreur critique lors de l'écriture sur le Blob:", err);
+    throw err;
   }
-
-  await mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await writeFile(DATA_PATH, payload, "utf8");
 }
 
 export function slugify(value: string) {
