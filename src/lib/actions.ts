@@ -7,6 +7,7 @@ import { HOME_LAYOUTS } from "./types";
 import type { HomeLayout, Project, ProjectImage } from "./types";
 import { readSite, slugify, writeSite } from "./store";
 import { saveUpload } from "./uploads";
+import { del } from "@vercel/blob";
 
 function revalidatePublic() {
   revalidatePath("/");
@@ -114,6 +115,24 @@ export async function deleteProjectAction(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") || "");
   const site = await readSite();
+
+  // Trouve le projet avant de le supprimer pour récupérer ses images
+  const projectToDelete = site.projects.find((p) => p.id === id);
+
+  // Supprime les images du Vercel Blob si elles y sont stockées
+  if (projectToDelete && process.env.BLOB_READ_WRITE_TOKEN) {
+    for (const img of projectToDelete.images) {
+      if (img.src.includes("vercel-storage.com") || img.src.includes("public.blob.vercel-storage.com")) {
+        try {
+          await del(img.src, { token: process.env.BLOB_READ_WRITE_TOKEN });
+        } catch (e) {
+          console.error("Erreur lors de la suppression de l'image blob:", e);
+        }
+      }
+    }
+  }
+
+  // Retire le projet de la liste
   site.projects = site.projects.filter((p) => p.id !== id);
   await writeSite(site);
   revalidatePublic();
