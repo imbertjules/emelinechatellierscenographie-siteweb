@@ -28,14 +28,33 @@ export function ProjectForm({ project }: { project?: Project }) {
 
   async function submitProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData();
+
+    // Récupération manuelle et sécurisée des champs de base
+    const id = (form.elements.namedItem("id") as HTMLInputElement)?.value || "";
+    const title = (form.elements.namedItem("title") as HTMLInputElement)?.value || "";
+    const order = (form.elements.namedItem("order") as HTMLInputElement)?.value || "1";
+    const homeLayout = (form.elements.namedItem("homeLayout") as HTMLSelectElement)?.value || "mediumleft";
+    const showOnHome = (form.elements.namedItem("showOnHome") as HTMLInputElement)?.checked ? "on" : "";
+
+    formData.append("id", id);
+    formData.append("title", title);
+    formData.append("order", order);
+    formData.append("homeLayout", homeLayout);
+    if (showOnHome) formData.append("showOnHome", showOnHome);
+    formData.append("imageCount", rows.length.toString());
 
     const filesToUpload = rows
         .map((row, index) => ({ file: row.file, index }))
         .filter((row): row is { file: File; index: number } => Boolean(row.file));
 
-    // S'il n'y a pas de nouvelle image, on envoie directement le formulaire
+    // Ajouter les sources existantes par défaut
+    rows.forEach((row, index) => {
+      formData.append(`existingSrc-${index}`, row.existingSrc);
+    });
+
     if (filesToUpload.length === 0) {
-      const formData = new FormData(event.currentTarget);
       await saveProjectAction(formData);
       return;
     }
@@ -57,7 +76,6 @@ export function ProjectForm({ project }: { project?: Project }) {
           }),
       );
 
-      const formData = new FormData(event.currentTarget);
       for (const { index, url } of uploaded) {
         formData.set(`existingSrc-${index}`, url);
       }
