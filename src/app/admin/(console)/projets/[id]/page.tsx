@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { ProjectForm } from "@/components/ProjectForm";
 import { readSite } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export default async function EditProjectPage({
   params,
 }: {

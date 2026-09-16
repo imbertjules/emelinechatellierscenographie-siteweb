@@ -1,7 +1,8 @@
-import { head, put } from "@vercel/blob";
+import { get, head, list, put } from "@vercel/blob";
 import type { SiteData } from "./types";
 
 const BLOB_KEY = "site.json";
+const VERSIONED_PREFIX = "site-";
 
 const emptySite = (): SiteData => ({
   settings: {
@@ -21,19 +22,26 @@ export async function readSite(options: { strict?: boolean } = {}): Promise<Site
   }
 
   try {
-    const details = await head(BLOB_KEY, { token });
+    const versioned = await list({ prefix: VERSIONED_PREFIX, limit: 100, token });
+    const latestVersion = versioned.blobs
+      .filter((blob) => blob.pathname.endsWith(".json"))
+      .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
+    const details = latestVersion || await head(BLOB_KEY, { token });
     if (!details) {
       const site = emptySite();
       await writeSite(site);
       return site;
     }
 
-    const response = await fetch(details.url, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Impossible de lire ${BLOB_KEY}: ${response.status}`);
+    const result = await get(details.pathname, {
+      access: "public",
+      token,
+    });
+    if (!result) {
+      throw new Error(`Blob introuvable: ${details.pathname}`);
     }
 
-    return (await response.json()) as SiteData;
+    return (await new Response(result.stream).json()) as SiteData;
   } catch (error) {
     console.error("Impossible de lire les données du site dans Vercel Blob.", error);
     if (options.strict) {
@@ -51,10 +59,9 @@ export async function writeSite(data: SiteData) {
 
   const payload = JSON.stringify(data, null, 2);
 
-  await put(BLOB_KEY, payload, {
+  await put(`${VERSIONED_PREFIX}${Date.now()}-${crypto.randomUUID()}.json`, payload, {
     access: "public",
     addRandomSuffix: false,
-    allowOverwrite: true,
     contentType: "application/json",
     token,
   });
