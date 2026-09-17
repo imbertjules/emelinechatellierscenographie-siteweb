@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { HOME_LAYOUTS } from "@/lib/types";
 import type { Project } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
