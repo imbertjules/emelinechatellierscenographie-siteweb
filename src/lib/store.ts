@@ -8,6 +8,13 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const useSupabase = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
+// In production environments (e.g. Vercel), writing to the local filesystem at runtime is not reliable.
+// Require Supabase to be configured in production to avoid write errors.
+const runningInProd = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+if (!useSupabase && runningInProd) {
+  throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in production. Set these environment variables to enable persistence.");
+}
+
 const supabase = useSupabase
   ? createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
       auth: { persistSession: false },

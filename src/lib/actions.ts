@@ -40,7 +40,12 @@ export async function saveSettingsAction(formData: FormData) {
     tagline: String(formData.get("tagline") || "").trim(),
     email: String(formData.get("email") || "").trim(),
   };
-  await writeSite(site);
+  try {
+    await writeSite(site);
+  } catch (e) {
+    console.error('Error writing site in saveSettingsAction:', e);
+    throw e;
+  }
   revalidatePublic();
   redirect("/admin");
 }
@@ -49,7 +54,12 @@ export async function saveAboutAction(formData: FormData) {
   await requireAdmin();
   const site = await readSite();
   site.aboutHtml = String(formData.get("aboutHtml") || "");
-  await writeSite(site);
+  try {
+    await writeSite(site);
+  } catch (e) {
+    console.error('Error writing site in saveAboutAction:', e);
+    throw e;
+  }
   revalidatePublic();
   redirect("/admin/a-propos");
 }
@@ -112,7 +122,12 @@ export async function saveProjectAction(formData: FormData) {
     site.projects.push(project);
   }
 
-  await writeSite(site);
+  try {
+    await writeSite(site);
+  } catch (e) {
+    console.error('Error writing site in saveProjectAction:', e);
+    throw e;
+  }
   revalidatePublic();
   redirect("/admin/projets");
 }
@@ -135,7 +150,12 @@ export async function deleteProjectAction(formData: FormData) {
   }
 
   site.projects = site.projects.filter((p) => p.id !== id);
-  await writeSite(site);
+  try {
+    await writeSite(site);
+  } catch (e) {
+    console.error('Error writing site in deleteProjectAction:', e);
+    throw e;
+  }
   revalidatePublic();
   redirect("/admin/projets");
 }
