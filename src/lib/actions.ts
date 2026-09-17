@@ -123,6 +123,8 @@ export async function saveProjectAction(formData: FormData) {
   }
 
   const layout = String(formData.get("homeLayout") || "") as HomeLayout;
+  const width = String(formData.get("homeWidth") || "") as Project["homeWidth"];
+  const align = String(formData.get("homeAlign") || "") as Project["homeAlign"];
   const project: Project = {
     id,
     title,
@@ -130,7 +132,9 @@ export async function saveProjectAction(formData: FormData) {
     showOnHome: formData.get("showOnHome") === "on",
     homeLayout: HOME_LAYOUTS.includes(layout)
         ? layout
-        : HOME_LAYOUTS[site.projects.length % HOME_LAYOUTS.length],
+        : HOME_LAYOUTS[(site.projects.length + 1) % HOME_LAYOUTS.length],
+    homeWidth: width === "small" || width === "medium" || width === "large" || width === "full" ? width : "medium",
+    homeAlign: align === "left" || align === "center" || align === "right" ? align : "center",
     order: Number(formData.get("order") || current?.order || site.projects.length + 1),
     images,
     content,

@@ -21,12 +21,17 @@ export type ProjectBlock =
   | { type: 'text'; content: string; align: 'left' | 'center' | 'right' }
   | { type: 'info'; items: { label: string; value: string }[] };
 
+export type HomeProjectWidth = "small" | "medium" | "large" | "full";
+export type HomeProjectAlign = "left" | "center" | "right";
+
 export type Project = {
   id: string;
   slug: string;
   title: string;
   showOnHome: boolean;
-  homeLayout: HomeLayout;
+  homeLayout?: HomeLayout;
+  homeWidth?: HomeProjectWidth;
+  homeAlign?: HomeProjectAlign;
   order: number;
   // We keep images for backward compatibility and the home page,
   // but we add content for the detailed page.

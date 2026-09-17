@@ -1,7 +1,32 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { readSite } from "@/lib/store";
+import type { HomeProjectAlign, HomeProjectWidth, HomeLayout } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+const HOME_LAYOUT_CLASSES: Record<HomeLayout, string> = {
+  smallleft: "col-span-4 col-start-1 mt-0",
+  mediumright: "col-span-5 col-start-8 mt-20",
+  largeleft: "col-span-7 col-start-1 mt-0",
+  smallright: "col-span-4 col-start-9 mt-12",
+  mediumleft: "col-span-5 col-start-1 mt-24",
+  largeright: "col-span-7 col-start-6 mt-12",
+  mediumcenter: "col-span-5 col-start-4 mt-8",
+  smallcenter: "col-span-4 col-start-5 mt-20",
+};
+
+const WIDTH_CLASSES: Record<HomeProjectWidth, string> = {
+  small: "w-full md:w-[32%]",
+  medium: "w-full md:w-[48%]",
+  large: "w-full md:w-[64%]",
+  full: "w-full",
+};
+
+const ALIGN_CLASSES: Record<HomeProjectAlign, string> = {
+  left: "md:justify-self-start",
+  center: "md:justify-self-center",
+  right: "md:justify-self-end",
+};
 
 export default async function HomePage() {
   const site = await readSite();
@@ -12,20 +37,17 @@ export default async function HomePage() {
   return (
     <main>
       <SiteHeader settings={site.settings} current="home" />
-      <section className="grid grid-cols-12 gap-y-32 gap-x-8 max-w-[1600px] mx-auto px-8 py-32">
-        {projects.map((project, index) => {
-          const pattern = index % 4;
-          const layoutClasses =
-            pattern === 0 ? "col-span-6 col-start-1 mt-0" :
-            pattern === 1 ? "col-span-6 col-start-7 mt-24" :
-            pattern === 2 ? "col-span-5 col-start-4 mt-12" :
-            "col-span-7 col-start-3 mt-40";
+      <section className="grid grid-cols-12 gap-y-28 gap-x-8 max-w-[1600px] mx-auto px-8 py-32">
+        {projects.map((project) => {
+          const gridClasses = HOME_LAYOUT_CLASSES[project.homeLayout ?? "mediumcenter"] || HOME_LAYOUT_CLASSES.mediumcenter;
+          const widthClass = WIDTH_CLASSES[project.homeWidth ?? "medium"] || WIDTH_CLASSES.medium;
+          const alignClass = ALIGN_CLASSES[project.homeAlign ?? "center"] || ALIGN_CLASSES.center;
 
           return (
             <a
               key={project.id}
               href={`/projets/${project.slug}`}
-              className={`flex flex-col ${layoutClasses} mb-10`}
+              className={`flex flex-col ${gridClasses} ${widthClass} ${alignClass} mb-10`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

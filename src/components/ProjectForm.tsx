@@ -99,6 +99,41 @@ export function ProjectForm({ project }: { project?: Project }) {
         <input name="order" type="number" defaultValue={project?.order ?? 1} style={inputStyle} />
       </label>
 
+      <div style={{ display: "grid", gap: 16 }}>
+        <label style={{ display: "grid", gap: 6 }}>
+          Emplacement sur l’accueil
+          <select name="homeLayout" defaultValue={project?.homeLayout ?? "mediumcenter"} style={inputStyle}>
+            <option value="smallleft">Petit gauche</option>
+            <option value="mediumright">Moyen droit</option>
+            <option value="largeleft">Large gauche</option>
+            <option value="smallright">Petit droit</option>
+            <option value="mediumleft">Moyen gauche</option>
+            <option value="largeright">Large droit</option>
+            <option value="mediumcenter">Moyen centre</option>
+            <option value="smallcenter">Petit centre</option>
+          </select>
+        </label>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          Taille de l’image
+          <select name="homeWidth" defaultValue={project?.homeWidth ?? "medium"} style={inputStyle}>
+            <option value="small">Petite</option>
+            <option value="medium">Moyenne</option>
+            <option value="large">Grande</option>
+            <option value="full">Pleine largeur</option>
+          </select>
+        </label>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          Alignement
+          <select name="homeAlign" defaultValue={project?.homeAlign ?? "center"} style={inputStyle}>
+            <option value="left">Gauche</option>
+            <option value="center">Centre</option>
+            <option value="right">Droite</option>
+          </select>
+        </label>
+      </div>
+
       <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <input type="checkbox" name="showOnHome" defaultChecked={project?.showOnHome ?? true} />
         Afficher sur la page d’accueil
