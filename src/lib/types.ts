@@ -1,16 +1,3 @@
-export const HOME_LAYOUTS = [
-  "smallleft",
-  "mediumright",
-  "largeleft",
-  "smallright",
-  "mediumleft",
-  "largeright",
-  "mediumcenter",
-  "smallcenter",
-] as const;
-
-export type HomeLayout = (typeof HOME_LAYOUTS)[number];
-
 export type ProjectImage = {
   src: string;
   caption: string;
@@ -29,7 +16,7 @@ export type Project = {
   slug: string;
   title: string;
   showOnHome: boolean;
-  homeLayout?: HomeLayout;
+  homeLayout?: string;
   homeWidth?: HomeProjectWidth;
   homeAlign?: HomeProjectAlign;
   order: number;

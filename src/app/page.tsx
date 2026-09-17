@@ -5,10 +5,10 @@ import type { HomeProjectAlign, HomeProjectWidth } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 const WIDTH_CLASSES: Record<HomeProjectWidth, string> = {
-  small: "w-full md:max-w-[32%]",
-  medium: "w-full md:max-w-[48%]",
-  large: "w-full md:max-w-[64%]",
-  full: "w-full",
+  small: "md:max-w-[32%]",
+  medium: "md:max-w-[48%]",
+  large: "md:max-w-[64%]",
+  full: "max-w-full",
 };
 
 const ALIGN_CLASSES: Record<HomeProjectAlign, string> = {
@@ -35,7 +35,7 @@ export default async function HomePage() {
             <a
               key={project.id}
               href={`/projets/${project.slug}`}
-              className={`col-span-12 flex flex-col ${widthClass} ${alignClass} mb-10`}
+              className={`col-span-12 md:col-span-8 flex flex-col ${widthClass} ${alignClass} mb-10`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

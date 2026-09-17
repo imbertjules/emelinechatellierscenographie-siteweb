@@ -101,20 +101,6 @@ export function ProjectForm({ project }: { project?: Project }) {
 
       <div style={{ display: "grid", gap: 16 }}>
         <label style={{ display: "grid", gap: 6 }}>
-          Emplacement sur l’accueil
-          <select name="homeLayout" defaultValue={project?.homeLayout ?? "mediumcenter"} style={inputStyle}>
-            <option value="smallleft">Petit gauche</option>
-            <option value="mediumright">Moyen droit</option>
-            <option value="largeleft">Large gauche</option>
-            <option value="smallright">Petit droit</option>
-            <option value="mediumleft">Moyen gauche</option>
-            <option value="largeright">Large droit</option>
-            <option value="mediumcenter">Moyen centre</option>
-            <option value="smallcenter">Petit centre</option>
-          </select>
-        </label>
-
-        <label style={{ display: "grid", gap: 6 }}>
           Taille de l’image
           <select name="homeWidth" defaultValue={project?.homeWidth ?? "medium"} style={inputStyle}>
             <option value="small">Petite</option>
@@ -125,7 +111,7 @@ export function ProjectForm({ project }: { project?: Project }) {
         </label>
 
         <label style={{ display: "grid", gap: 6 }}>
-          Alignement
+          Alignement sur la page d’accueil
           <select name="homeAlign" defaultValue={project?.homeAlign ?? "center"} style={inputStyle}>
             <option value="left">Gauche</option>
             <option value="center">Centre</option>
@@ -148,17 +134,49 @@ export function ProjectForm({ project }: { project?: Project }) {
 
             {block.type === 'image' && (
               <div style={{ display: "grid", gap: 12 }}>
-                <input
-                  type="file"
-                  name={`file-${index}`}
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      updateBlock(index, { src: URL.createObjectURL(file) });
-                    }
-                  }}
-                />
+                <div style={{ display: "grid", gap: 8 }}>
+                  <input
+                    id={`file-${index}`}
+                    type="file"
+                    name={`file-${index}`}
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        updateBlock(index, { src: URL.createObjectURL(file) });
+                      }
+                    }}
+                    style={{ display: "none" }}
+                  />
+                  <label
+                    htmlFor={`file-${index}`}
+                    style={{
+                      ...ghostButton,
+                      width: "fit-content",
+                      display: "inline-flex",
+                    }}
+                  >
+                    {block.src ? "Remplacer l'image" : "Choisir une image"}
+                  </label>
+
+                  {block.src ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={block.src}
+                        alt={`Prévisualisation ${index + 1}`}
+                        style={{
+                          maxWidth: 420,
+                          maxHeight: 260,
+                          objectFit: "contain",
+                          border: "1px solid #ddd",
+                          background: "#fafafa",
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
                 <div style={{ display: "flex", gap: 12 }}>
                   <label style={{ fontSize: 12 }}>Largeur:
                     <select value={block.width} onChange={e => updateBlock(index, { width: e.target.value as never })} style={inputStyle}>
