@@ -1,11 +1,11 @@
-import { Metadata, notFound } from "next";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { readSite } from "@/lib/store";
 import { ProjectBlock } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const site = await readSite();
   const project = site.projects.find((item) => item.slug === slug);
@@ -20,9 +20,13 @@ export default async function ProjectPage({
   const { slug } = await params;
   const site = await readSite();
   const project = site.projects.find((item) => item.slug === slug);
-  if (!project) notFound();
 
-  // Fallback: if no content blocks defined, convert images to blocks for a smooth transition
+  if (!project) {
+    notFound();
+    return null;
+  }
+
+  // Fallback: if no content blocks defined, convert images to blocks
   const blocks: ProjectBlock[] = project.content || project.images.map((img, i) => ({
     type: 'image',
     src: img.src,
@@ -33,7 +37,6 @@ export default async function ProjectPage({
 
   return (
     <main className="bg-black text-white min-h-screen relative">
-      {/* Header inspired by roll-office */}
       <header className="fixed top-0 left-0 w-full z-50 px-6 py-4 flex justify-between items-center pointer-events-none">
         <div className="pointer-events-auto">
           <Link href="/" className="text-lg font-bold tracking-tighter">
@@ -54,14 +57,12 @@ export default async function ProjectPage({
       </header>
 
       <div className="max-w-5xl mx-auto pt-32 pb-40 px-6">
-        {/* Project Title Section */}
         <div className="mb-24 mt-10">
           <h1 className="text-4xl md:text-7xl font-serif italic leading-tight max-w-4xl">
             {project.title}
           </h1>
         </div>
 
-        {/* Dynamic Content Blocks */}
         <div className="space-y-32">
           {blocks.map((block, index) => {
             if (block.type === 'image') {

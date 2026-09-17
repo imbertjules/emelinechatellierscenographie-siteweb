@@ -1,47 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { HOME_LAYOUTS } from "@/lib/types";
 import type { Project, ProjectBlock } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
-
-async function optimizeImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
-    return file;
-  }
-
-  const image = await createImageBitmap(file);
-  const maxDimension = 2400;
-  const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
-  const width = Math.max(1, Math.round(image.width * scale));
-  const height = Math.max(1, Math.round(image.height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-
-  const context = canvas.getContext("2d");
-  if (!context) {
-    image.close();
-    throw new Error("Impossible de préparer l’image.");
-  }
-
-  context.drawImage(image, 0, 0, width, height);
-  image.close();
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", 0.82),
-  );
-  if (!blob) {
-    throw new Error("Impossible de compresser l’image.");
-  }
-
-  const basename = file.name.replace(/\.[^.]+$/, "") || "image";
-  return new File([blob], `${basename}.jpg`, {
-    type: "image/jpeg",
-    lastModified: Date.now(),
-  });
-}
 
 export function ProjectForm({ project }: { project?: Project }) {
   const [blocks, setBlocks] = useState<ProjectBlock[]>(
@@ -164,14 +126,14 @@ export function ProjectForm({ project }: { project?: Project }) {
                 />
                 <div style={{ display: "flex", gap: 12 }}>
                   <label style={{ fontSize: 12 }}>Largeur:
-                    <select value={block.width} onChange={e => updateBlock(index, { width: e.target.value as any })} style={inputStyle}>
+                    <select value={block.width} onChange={e => updateBlock(index, { width: e.target.value as never })} style={inputStyle}>
                       <option value="full">Pleine</option>
                       <option value="half">Moitié</option>
                       <option value="third">Tiers</option>
                     </select>
                   </label>
                   <label style={{ fontSize: 12 }}>Alignement:
-                    <select value={block.align} onChange={e => updateBlock(index, { align: e.target.value as any })} style={inputStyle}>
+                    <select value={block.align} onChange={e => updateBlock(index, { align: e.target.value as never })} style={inputStyle}>
                       <option value="left">Gauche</option>
                       <option value="center">Centre</option>
                       <option value="right">Droite</option>
@@ -189,7 +151,7 @@ export function ProjectForm({ project }: { project?: Project }) {
             {block.type === 'text' && (
               <div style={{ display: "grid", gap: 12 }}>
                 <label style={{ fontSize: 12 }}>Alignement:
-                  <select value={block.align} onChange={e => updateBlock(index, { align: e.target.value as any })} style={inputStyle}>
+                  <select value={block.align} onChange={e => updateBlock(index, { align: e.target.value as never })} style={inputStyle}>
                     <option value="left">Gauche</option>
                     <option value="center">Centre</option>
                     <option value="right">Droite</option>
@@ -198,7 +160,7 @@ export function ProjectForm({ project }: { project?: Project }) {
                 <Wysiwyg
                   name={`text-${index}`}
                   initialHtml={block.content}
-                  onChangeAction={(html: string) => updateBlock(index, { content: html })}
+                  onChange={(html: string) => updateBlock(index, { content: html })}
                 />
               </div>
             )}
