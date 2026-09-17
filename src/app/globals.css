@@ -2,7 +2,6 @@
 
 :root {
   --header-inset: 25px;
-  --header-clearance: 8rem;
 }
 
 * {
@@ -52,20 +51,12 @@ select {
 
 .site-brand {
   display: flex;
-  line-height: 0;
-}
-
-.site-brand img {
-  display: block;
-  width: 205px;
-  height: auto;
+  gap: 40px;
 }
 
 .site-nav {
   display: flex;
   gap: 20px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 700;
 }
 
 .homeprojects {
@@ -74,13 +65,12 @@ select {
   column-gap: 25px;
   row-gap: 5rem;
   width: 100%;
-  padding: var(--header-clearance) 0 4rem;
+  padding: 0 0 4rem;
   overflow: hidden;
 }
 
 .homeimage-container {
-  display: block;
-  line-height: normal;
+  line-height: 0;
 }
 
 .homeimage-container img,
@@ -131,7 +121,7 @@ select {
 }
 
 .project-page {
-  padding: var(--header-clearance) 0 6rem;
+  padding: 0 0 6rem;
 }
 
 .project-figure {
@@ -139,8 +129,6 @@ select {
 }
 
 .project-caption {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.2px;
   line-height: 1.3;
@@ -148,41 +136,13 @@ select {
   max-width: 42rem;
 }
 
-.project-caption p,
-.home-caption p {
-  margin: 0;
-}
-
-.project-caption p + p,
-.home-caption p + p {
-  margin-top: 0.5em;
-}
-
-.home-caption {
-  display: block;
-  margin-top: 10px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  line-height: 1.3;
-}
-
-.home-caption ul,
-.home-caption ol,
-.project-caption ul,
-.project-caption ol {
-  margin: 0;
-  padding-left: 1.2em;
-}
-
 .about-page {
-  padding: var(--header-clearance) 0 20vh;
+  padding: 5rem 0 20vh;
 }
 
 .about-text {
-  width: 100%;
-  padding: 2rem 50px 3.5rem;
+  width: min(24rem, calc(100% - 50px));
+  padding: 2rem 75px 3.5rem 100px;
   font-size: 22.5px;
   line-height: 1.35;
 }
@@ -191,28 +151,10 @@ select {
   margin: 0 0 1rem;
 }
 
-.about-text h2,
-.about-text h3 {
-  font-family: Georgia, "Times New Roman", serif;
+.about-text h2 {
   font-size: inherit;
-  font-weight: 700;
+  font-weight: 500;
   margin: 2rem 0 1rem;
-}
-
-.about-text h3 {
-  margin-top: 1.25rem;
-}
-
-.about-text ul,
-.about-text ol {
-  margin: 0 0 1rem;
-  padding-left: 1.2em;
-}
-
-.about-text blockquote {
-  margin: 1.25rem 0;
-  padding-left: 1em;
-  border-left: 2px solid currentColor;
 }
 
 .about-text a {
@@ -232,54 +174,7 @@ select {
   color: inherit;
 }
 
-.rich-editor {
-  display: grid;
-  gap: 8px;
-}
-
-.editor-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-items: center;
-  padding: 8px;
-  background: #e9e9e9;
-  border: 1px solid #ccc;
-}
-
-.editor-button {
-  min-width: 32px;
-  height: 32px;
-  padding: 0 7px;
-  border: 1px solid #aaa;
-  background: #fff;
-  color: #111;
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-}
-
-.editor-button:hover,
-.editor-button.is-active {
-  background: #111;
-  border-color: #111;
-  color: #fff;
-}
-
-.editor-button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.editor-divider {
-  width: 1px;
-  height: 22px;
-  margin: 0 2px;
-  background: #bcbcbc;
-}
-
-.tiptap,
-.editor-loading {
+.tiptap {
   min-height: 280px;
   padding: 16px;
   background: #fff;
@@ -291,36 +186,8 @@ select {
   margin: 0 0 0.8em;
 }
 
-.tiptap h2,
-.tiptap h3 {
-  margin: 1.2em 0 0.5em;
-}
-
-.tiptap ul,
-.tiptap ol {
-  padding-left: 1.5em;
-  margin: 0 0 0.8em;
-}
-
-.tiptap blockquote {
-  margin: 0 0 0.8em;
-  padding-left: 1em;
-  border-left: 3px solid #999;
-}
-
-.tiptap a {
-  color: #0645ad;
-  text-decoration: underline;
-}
-
 .tiptap:focus {
   border-color: #111;
-}
-
-.editor-help {
-  margin: 0;
-  color: #555;
-  font-size: 13px;
 }
 
 @media (max-width: 920px) {
@@ -338,10 +205,6 @@ select {
     display: none;
   }
 
-  .site-brand img {
-    width: 150px;
-  }
-
   .smallleft,
   .smallcenter,
   .smallright,
@@ -356,25 +219,9 @@ select {
     padding-top: 0;
   }
 
-  .homeimage-container:nth-child(3n + 1) {
-    grid-column: 1 / span 9;
-  }
-
-  .homeimage-container:nth-child(3n + 2) {
-    grid-column: 4 / span 9;
-  }
-
-  .homeimage-container:nth-child(3n) {
-    grid-column: 2 / span 10;
-  }
-
   .homeprojects {
-    row-gap: 3.75rem;
-    padding-top: var(--header-clearance);
-  }
-
-  .home-caption {
-    font-size: 14px;
+    row-gap: 2.5rem;
+    padding-top: 4rem;
   }
 
   .about-text {
