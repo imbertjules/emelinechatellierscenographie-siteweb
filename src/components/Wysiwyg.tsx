@@ -40,6 +40,12 @@ export function Wysiwyg({
 
   useEffect(() => {
     if (!editor) return;
+    if (editor.getHTML() === initialHtml) return;
+    editor.commands.setContent(initialHtml);
+  }, [editor, initialHtml]);
+
+  useEffect(() => {
+    if (!editor) return;
 
     const update = () => {
       const html = editor.getHTML();

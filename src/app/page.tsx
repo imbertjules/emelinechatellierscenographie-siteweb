@@ -16,10 +16,10 @@ export default async function HomePage() {
         {projects.map((project, index) => {
           const pattern = index % 4;
           const layoutClasses =
-            pattern === 0 ? "col-span-6 col-start-1" :
-            pattern === 1 ? "col-span-6 col-start-7" :
-            pattern === 2 ? "col-span-5 col-start-4" :
-            "col-span-7 col-start-3";
+            pattern === 0 ? "col-span-6 col-start-1 mt-0" :
+            pattern === 1 ? "col-span-6 col-start-7 mt-24" :
+            pattern === 2 ? "col-span-5 col-start-4 mt-12" :
+            "col-span-7 col-start-3 mt-40";
 
           return (
             <a
