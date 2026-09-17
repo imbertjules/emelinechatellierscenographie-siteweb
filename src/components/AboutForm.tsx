@@ -7,6 +7,8 @@ export function AboutForm({ initialHtml }: { initialHtml: string }) {
   async function submitAbout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    // Debug: log aboutHtml before sending
+    console.log('AboutForm submit, aboutHtml=', formData.get('aboutHtml'));
     await saveAboutAction(formData);
   }
 

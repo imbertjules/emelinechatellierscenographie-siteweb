@@ -54,7 +54,9 @@ export async function saveSettingsAction(formData: FormData) {
 export async function saveAboutAction(formData: FormData) {
   await requireAdmin();
   const site = await readSite();
-  site.aboutHtml = String(formData.get("aboutHtml") || "");
+  const about = String(formData.get("aboutHtml") || "");
+  console.log('saveAboutAction received aboutHtml length=', about.length);
+  site.aboutHtml = about;
   try {
     await writeSite(site);
   } catch (e) {
