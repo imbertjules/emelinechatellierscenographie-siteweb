@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { readSite } from "@/lib/store";
 import { ProjectBlock } from "@/lib/types";
+import {SiteHeader} from "@/components/SiteHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -37,25 +37,7 @@ export default async function ProjectPage({
 
   return (
     <main className="bg-black text-white min-h-screen relative">
-      <header className="fixed top-0 left-0 w-full z-50 px-6 py-4 flex justify-between items-center pointer-events-none">
-        <div className="pointer-events-auto">
-          <Link href="/" className="text-lg font-bold tracking-tighter">
-            {site.settings.name}
-          </Link>
-        </div>
-        <div className="pointer-events-auto">
-          <Link
-            href="/"
-            className="w-6 h-6 flex items-center justify-center hover:opacity-50 transition-opacity"
-            aria-label="Retour"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </Link>
-        </div>
-      </header>
-
+      <SiteHeader settings={site.settings} />
       <div className="max-w-5xl mx-auto pt-32 pb-40 px-6">
         <div className="mb-24 mt-10">
           <h1 className="text-4xl md:text-7xl font-serif italic leading-tight max-w-4xl">
