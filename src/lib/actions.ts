@@ -44,7 +44,8 @@ export async function saveSettingsAction(formData: FormData) {
     await writeSite(site);
   } catch (e) {
     console.error('Error writing site in saveSettingsAction:', e);
-    throw e;
+    const msg = encodeURIComponent(String(e instanceof Error ? e.message : e));
+    redirect(`/admin?error=1&msg=${msg}`);
   }
   revalidatePublic();
   redirect("/admin");
@@ -58,7 +59,8 @@ export async function saveAboutAction(formData: FormData) {
     await writeSite(site);
   } catch (e) {
     console.error('Error writing site in saveAboutAction:', e);
-    throw e;
+    const msg = encodeURIComponent(String(e instanceof Error ? e.message : e));
+    redirect(`/admin/a-propos?error=1&msg=${msg}`);
   }
   revalidatePublic();
   redirect("/admin/a-propos");
@@ -126,7 +128,8 @@ export async function saveProjectAction(formData: FormData) {
     await writeSite(site);
   } catch (e) {
     console.error('Error writing site in saveProjectAction:', e);
-    throw e;
+    const msg = encodeURIComponent(String(e instanceof Error ? e.message : e));
+    redirect(`/admin/projets?error=1&msg=${msg}`);
   }
   revalidatePublic();
   redirect("/admin/projets");
@@ -154,7 +157,8 @@ export async function deleteProjectAction(formData: FormData) {
     await writeSite(site);
   } catch (e) {
     console.error('Error writing site in deleteProjectAction:', e);
-    throw e;
+    const msg = encodeURIComponent(String(e instanceof Error ? e.message : e));
+    redirect(`/admin/projets?error=1&msg=${msg}`);
   }
   revalidatePublic();
   redirect("/admin/projets");
