@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { HOME_LAYOUTS } from "@/lib/types";
 import type { Project } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
@@ -68,8 +69,48 @@ export function ProjectForm({ project }: { project?: Project }) {
     const formData = new FormData(form);
     formData.set("imageCount", rows.length.toString());
 
-    // Envoyer les fichiers au serveur; la logique d'upload est maintenant côté serveur (Supabase).
-    await saveProjectAction(formData);
+    // Upload files directly from the browser to Supabase Storage using public anon key
+    const filesToUpload = rows
+      .map((row, index) => ({ file: row.file, index }))
+      .filter((row): row is { file: File; index: number } => Boolean(row.file));
+
+    if (filesToUpload.length === 0) {
+      await saveProjectAction(formData);
+      return;
+    }
+
+    setUploading(true);
+    setUploadError("");
+
+    try {
+      const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!SUPABASE_URL || !SUPABASE_ANON) {
+        throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+      }
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+      const uploaded = await Promise.all(
+        filesToUpload.map(async ({ file, index }) => {
+          const optimizedFile = await optimizeImage(file);
+          const filename = optimizedFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+          const path = `uploads/${Date.now()}-${index}-${filename}`;
+          const { data, error } = await supabase.storage.from("uploads").upload(path, optimizedFile as unknown as File, { cacheControl: "3600", upsert: false });
+          if (error) throw error;
+          const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(path);
+          return { index, url: publicData.publicUrl };
+        }),
+      );
+
+      for (const { index, url } of uploaded) {
+        formData.set(`existingSrc-${index}`, url);
+      }
+
+      await saveProjectAction(formData);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "L’envoi des images a échoué.");
+      setUploading(false);
+    }
   }
 
   return (
