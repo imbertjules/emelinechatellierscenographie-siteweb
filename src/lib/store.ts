@@ -70,7 +70,7 @@ export async function writeSite(dataToWrite: SiteData) {
     const payload = dataToWrite;
     const { error } = await supabase
       .from("site")
-      .upsert({ id: SITE_ID, data: payload }, { returning: "minimal" });
+      .upsert({ id: SITE_ID, data: payload });
     if (error) {
       throw new Error(`Erreur Supabase writeSite: ${error.message}`);
     }
