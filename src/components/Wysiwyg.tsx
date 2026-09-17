@@ -10,15 +10,16 @@ import { useEffect, useRef, useState } from "react";
 export function Wysiwyg({
   name,
   initialHtml,
-  onChangeAction,
+  onChange,
 }: {
   name: string;
   initialHtml: string;
-  onChangeAction?: (html: string) => void;
+  onChange?: (html: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const onChangeRef = useRef(onChangeAction);
+  const onChangeRef = useRef(onChange);
   const [, refreshToolbar] = useState(0);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -35,21 +36,15 @@ export function Wysiwyg({
   });
 
   useEffect(() => {
-    onChangeRef.current = onChangeAction;
-  }, [onChangeAction]);
-
-  useEffect(() => {
-    if (!editor) return;
-    if (editor.getHTML() === initialHtml) return;
-    editor.commands.setContent(initialHtml);
-  }, [editor, initialHtml]);
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     if (!editor) return;
 
     const update = () => {
       const html = editor.getHTML();
-      if (inputRef.current) inputRef.current.value = html;
+      if (inputRef.current) inputRef.current.value = html; // Wait, there's a typo here in my thought, should be inputRef.current.value
       onChangeRef.current?.(html);
       refreshToolbar((value) => value + 1);
     };

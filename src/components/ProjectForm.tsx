@@ -198,7 +198,7 @@ export function ProjectForm({ project }: { project?: Project }) {
                   <Wysiwyg
                       name={`caption-${index}`}
                       initialHtml={row.caption}
-                      onChangeAction={(caption: string) =>
+                      onChange={(caption) =>
                           setRows((current) =>
                               current.map((item, i) =>
                                   i === index ? { ...item, caption } : item,
