@@ -71,17 +71,15 @@ select {
 .homeprojects {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  column-gap: 60px; /* wider gutters like the reference */
-  row-gap: 6.5rem;
+  column-gap: 25px;
+  row-gap: 5rem;
   width: 100%;
-  padding: calc(var(--header-clearance) + 2rem) 0 6rem;
+  padding: var(--header-clearance) 0 4rem;
   overflow: hidden;
 }
 
 .homeimage-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   line-height: normal;
 }
 
@@ -90,68 +88,46 @@ select {
   width: 100%;
   height: auto;
   display: block;
-  object-fit: cover;
-  /* limit very tall images to keep rhythm */
-  max-height: 720px;
-}
-
-/* make images breathe and not touch edges */
-.homeimage-container {
-  padding: 0 10px;
 }
 
 .smallleft {
-  grid-column: 2 / span 5;
-  padding-top: 2rem;
+  grid-column: 2 / span 4;
+  padding-top: 1rem;
 }
 .smallcenter {
   grid-column: 5 / span 4;
-  padding-top: 3rem;
+  padding-top: 2rem;
 }
 .smallright {
   grid-column: 8 / span 4;
-  padding-top: 4rem;
+  padding-top: 3rem;
 }
 .mediumleft {
-  grid-column: 1 / span 6;
-  padding-top: 2rem;
+  grid-column: 1 / span 5;
+  padding-top: 1rem;
 }
 .mediumcenter {
-  grid-column: 3 / span 8;
-  padding-top: 3rem;
-}
-.mediumright {
-  grid-column: 7 / span 6;
-  padding-top: 4rem;
-}
-.largeleft {
-  grid-column: 1 / span 7;
+  grid-column: 4 / span 6;
   padding-top: 2rem;
 }
-.largecenter {
-  grid-column: 2 / span 9;
+.mediumright {
+  grid-column: 8 / span 5;
   padding-top: 3rem;
 }
+.largeleft {
+  grid-column: 1 / span 6;
+  padding-top: 1rem;
+}
+.largecenter {
+  grid-column: 3 / span 8;
+  padding-top: 2rem;
+}
 .largeright {
-  grid-column: 5 / span 8;
-  padding-top: 4rem;
+  grid-column: 7 / span 6;
+  padding-top: 3rem;
 }
 .full {
   grid-column: 1 / span 12;
-}
-
-/* Slight variation in alignment to mimic staggered visual rhythm */
-.homeimage-container:nth-child(odd) img {
-  transform: translateY(-6%);
-}
-.homeimage-container:nth-child(even) img {
-  transform: translateY(6%);
-}
-.homeimage-container img {
-  transition: transform 0.3s ease;
-}
-.homeimage-container:hover img {
-  transform: translateY(0) scale(1.02);
 }
 
 .project-page {
