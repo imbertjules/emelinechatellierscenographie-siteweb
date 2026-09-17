@@ -9,11 +9,8 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const useSupabase = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
 // In production environments (e.g. Vercel), writing to the local filesystem at runtime is not reliable.
-// Require Supabase to be configured in production to avoid write errors.
+// We'll only enforce Supabase presence at runtime when attempting file/database writes.
 const runningInProd = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
-if (!useSupabase && runningInProd) {
-  throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in production. Set these environment variables to enable persistence.");
-}
 
 const supabase = useSupabase
   ? createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
@@ -62,6 +59,9 @@ export async function readSite(): Promise<SiteData> {
 
   // Fallback to local file for dev / when env vars are not provided
   try {
+    if (runningInProd && !useSupabase) {
+      throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in production. Set these environment variables to enable persistence.");
+    }
     await ensureLocalDir();
     const raw = await readFile(LOCAL_SITE_FILE, "utf-8");
     return JSON.parse(raw) as SiteData;
@@ -85,6 +85,9 @@ export async function writeSite(dataToWrite: SiteData) {
   }
 
   // Fallback to local file
+  if (runningInProd && !useSupabase) {
+    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in production. Set these environment variables to enable persistence.");
+  }
   await ensureLocalDir();
   await writeFile(LOCAL_SITE_FILE, JSON.stringify(dataToWrite, null, 2), "utf-8");
 }

@@ -8,9 +8,6 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const useSupabase = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
 const runningInProd = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
-if (!useSupabase && runningInProd) {
-  throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in production to enable uploads.");
-}
 
 const supabase = useSupabase
   ? createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
@@ -49,6 +46,9 @@ export async function saveUpload(file: File) {
   }
 
   // Fallback: save to public/uploads
+  if (runningInProd && !useSupabase) {
+    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in production to enable uploads.");
+  }
   const dir = await ensureUploadsDir();
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(path.join(dir, name), buffer);
