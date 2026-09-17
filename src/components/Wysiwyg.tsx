@@ -10,14 +10,14 @@ import { useEffect, useRef, useState } from "react";
 export function Wysiwyg({
   name,
   initialHtml,
-  onChange,
+  onChangeAction,
 }: {
   name: string;
   initialHtml: string;
-  onChange?: (html: string) => void;
+  onChangeAction?: (html: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const onChangeRef = useRef(onChange);
+  const onChangeRef = useRef(onChangeAction);
   const [, refreshToolbar] = useState(0);
   const editor = useEditor({
     immediatelyRender: false,
@@ -35,8 +35,8 @@ export function Wysiwyg({
   });
 
   useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
+    onChangeRef.current = onChangeAction;
+  }, [onChangeAction]);
 
   useEffect(() => {
     if (!editor) return;

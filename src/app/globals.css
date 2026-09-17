@@ -125,6 +125,20 @@ select {
   background-color: #000;
 }
 
+.project-figure {
+  margin: 0 0 1.2rem;
+}
+
+.project-caption {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  line-height: 1.3;
+  margin: 10px var(--header-inset) 0;
+  max-width: 42rem;
+}
+
 .about-page {
   padding: 5rem 0 20vh;
 }
