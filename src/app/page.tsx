@@ -5,17 +5,19 @@ import type { HomeProjectAlign, HomeProjectWidth } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 const WIDTH_CLASSES: Record<HomeProjectWidth, string> = {
-  small: "md:max-w-[32%]",
-  medium: "md:max-w-[48%]",
-  large: "md:max-w-[64%]",
-  full: "max-w-full",
+  small: "md:col-span-4",
+  medium: "md:col-span-5",
+  large: "md:col-span-7",
+  full: "md:col-span-12",
 };
 
-const ALIGN_CLASSES: Record<HomeProjectAlign, string> = {
-  left: "md:ml-0 md:mr-auto",
-  center: "mx-auto",
-  right: "md:ml-auto md:mr-0",
+const START_CLASSES: Record<HomeProjectAlign, string> = {
+  left: "md:col-start-1",
+  center: "md:col-start-4",
+  right: "md:col-start-8",
 };
+
+const OFFSET_CLASSES = ["mt-0", "mt-16", "mt-8", "mt-24"];
 
 export default async function HomePage() {
   const site = await readSite();
@@ -27,15 +29,16 @@ export default async function HomePage() {
     <main>
       <SiteHeader settings={site.settings} current="home" />
       <section className="grid grid-cols-12 gap-y-28 gap-x-8 max-w-[1600px] mx-auto px-8 py-32">
-        {projects.map((project) => {
+        {projects.map((project, index) => {
           const widthClass = WIDTH_CLASSES[project.homeWidth ?? "medium"] || WIDTH_CLASSES.medium;
-          const alignClass = ALIGN_CLASSES[project.homeAlign ?? "center"] || ALIGN_CLASSES.center;
+          const startClass = START_CLASSES[project.homeAlign ?? "center"] || START_CLASSES.center;
+          const offsetClass = OFFSET_CLASSES[index % OFFSET_CLASSES.length] || "mt-0";
 
           return (
             <a
               key={project.id}
               href={`/projets/${project.slug}`}
-              className={`col-span-12 md:col-span-8 flex flex-col ${widthClass} ${alignClass} mb-10`}
+              className={`col-span-12 flex flex-col ${widthClass} ${startClass} ${offsetClass} mb-10`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
