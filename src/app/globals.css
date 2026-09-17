@@ -125,33 +125,42 @@ select {
 }
 
 .project-gallery {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5rem;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 8rem 2rem;
   width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 2rem;
 }
 
 .project-figure {
-  margin: 0;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  max-width: 1200px;
+  grid-column: span 12;
+  margin: 0;
 }
 
-/* Asymmetric rhythmic layout similar to roll-office */
+/* Layout rythmique et décalé façon roll-office */
 .project-figure:nth-child(3n + 1) {
-  width: 70%;
-  align-self: flex-start;
+  grid-column: 1 / span 7;
+  align-self: start;
 }
+
 .project-figure:nth-child(3n + 2) {
-  width: 85%;
-  align-self: center;
+  grid-column: 6 / span 7;
+  margin-top: 4rem;
 }
+
 .project-figure:nth-child(3n + 3) {
-  width: 60%;
-  align-self: flex-end;
+  grid-column: 3 / span 6;
+}
+
+.project-figure img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
 }
 
 .project-caption {
@@ -160,8 +169,8 @@ select {
   font-size: 15px;
   letter-spacing: 0.2px;
   line-height: 1.3;
-  margin: 12px 0 0;
-  max-width: 42rem;
+  margin: 15px 0 0;
+  max-width: 100%;
 }
 
 .about-page {
