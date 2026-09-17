@@ -16,6 +16,11 @@ export type ProjectImage = {
   caption: string;
 };
 
+export type ProjectBlock =
+  | { type: 'image'; src: string; caption: string; width: 'full' | 'half' | 'third'; align: 'left' | 'center' | 'right' }
+  | { type: 'text'; content: string; align: 'left' | 'center' | 'right' }
+  | { type: 'info'; items: { label: string; value: string }[] };
+
 export type Project = {
   id: string;
   slug: string;
@@ -23,7 +28,10 @@ export type Project = {
   showOnHome: boolean;
   homeLayout: HomeLayout;
   order: number;
+  // We keep images for backward compatibility and the home page,
+  // but we add content for the detailed page.
   images: ProjectImage[];
+  content?: ProjectBlock[];
 };
 
 export type SiteSettings = {

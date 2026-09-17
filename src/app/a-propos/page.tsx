@@ -1,9 +1,10 @@
+import { Metadata } from "next";
 import { SiteHeader } from "@/components/SiteHeader";
 import { readSite } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "À propos",
 };
 

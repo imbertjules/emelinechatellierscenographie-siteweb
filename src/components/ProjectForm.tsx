@@ -2,16 +2,9 @@
 
 import { useState } from "react";
 import { HOME_LAYOUTS } from "@/lib/types";
-import type { Project } from "@/lib/types";
+import type { Project, ProjectBlock } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
-
-type Row = {
-  existingSrc: string;
-  caption: string;
-  preview?: string;
-  file?: File;
-};
 
 async function optimizeImage(file: File): Promise<File> {
   if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
@@ -51,13 +44,11 @@ async function optimizeImage(file: File): Promise<File> {
 }
 
 export function ProjectForm({ project }: { project?: Project }) {
-  const [rows, setRows] = useState<Row[]>(
-      project?.images.length
-          ? project.images.map((img) => ({
-            existingSrc: img.src,
-            caption: img.caption,
-          }))
-          : [{ existingSrc: "", caption: "" }],
+  const [blocks, setBlocks] = useState<ProjectBlock[]>(
+    project?.content ||
+    project?.images.map(img => ({
+      type: 'image', src: img.src, caption: img.caption, width: 'full', align: 'center'
+    })) || []
   );
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -66,192 +57,212 @@ export function ProjectForm({ project }: { project?: Project }) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
-    formData.set("imageCount", rows.length.toString());
 
-    // Upload files directly from the browser to Supabase Storage using public anon key
-    const filesToUpload = rows
-      .map((row, index) => ({ file: row.file, index }))
-      .filter((row): row is { file: File; index: number } => Boolean(row.file));
-
-    if (filesToUpload.length === 0) {
-      await saveProjectAction(formData);
-      return;
-    }
+    const imagesToUpload: Array<{ file: File; blockIndex: number }> = [];
+    blocks.forEach((block, index) => {
+      if (block.type === 'image') {
+        const fileInput = form.querySelector(`input[name="file-${index}"]`) as HTMLInputElement;
+        if (fileInput?.files?.[0]) {
+          imagesToUpload.push({ file: fileInput.files[0], blockIndex: index });
+        }
+      }
+    });
 
     setUploading(true);
     setUploadError("");
 
     try {
-      // Always use server-side upload endpoint to avoid client permission issues with Supabase buckets.
-      const fd = new FormData();
-      filesToUpload.forEach(({ file, index }) => {
-        fd.append(`file-${index}`, file, file.name);
-        fd.append(`index-${index}`, String(index));
-      });
-      const resp = await fetch('/api/upload', { method: 'POST', body: fd });
-      if (!resp.ok) {
-        const body = await resp.text();
-        throw new Error(`Upload to server failed: ${resp.status} ${body}`);
+      const uploadedImages: Array<{ index: number; url: string }> = [];
+      if (imagesToUpload.length > 0) {
+        const fd = new FormData();
+        imagesToUpload.forEach(({ file, blockIndex }, i) => {
+          fd.append(`file-${i}`, file, file.name);
+          fd.append(`index-${i}`, String(blockIndex));
+        });
+        const resp = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+        const json = await resp.json();
+        uploadedImages.push(...json);
       }
-      const uploaded: Array<{ index: number; url: string }> = await resp.json();
 
-      for (const { index, url } of uploaded) {
-        formData.set(`existingSrc-${index}`, url);
-      }
+      const finalBlocks = [...blocks];
+      uploadedImages.forEach(({ index, url }) => {
+        if (finalBlocks[index]?.type === 'image') {
+          finalBlocks[index].src = url;
+        }
+      });
+
+      const homeImages = finalBlocks
+        .filter(b => b.type === 'image')
+        .map(b => ({ src: b.src, caption: b.caption }));
+
+      formData.set("content", JSON.stringify(finalBlocks));
+      formData.set("images", JSON.stringify(homeImages));
 
       await saveProjectAction(formData);
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "L’envoi des images a échoué.");
+      setUploadError(error instanceof Error ? error.message : "Erreur lors de l'enregistrement.");
+    } finally {
       setUploading(false);
     }
   }
 
+  const addBlock = (type: ProjectBlock['type']) => {
+    const newBlock: ProjectBlock =
+      type === 'image' ? { type: 'image', src: '', caption: '', width: 'full', align: 'center' } :
+      type === 'text' ? { type: 'text', content: '', align: 'left' } :
+      { type: 'info', items: [{ label: '', value: '' }] };
+    setBlocks([...blocks, newBlock]);
+  };
+
+  const updateBlock = (index: number, updates: Partial<ProjectBlock>) => {
+    setBlocks(prev => prev.map((b, i) => i === index ? ({ ...b, ...updates } as ProjectBlock) : b));
+  };
+
+  const removeBlock = (index: number) => {
+    setBlocks(prev => prev.filter((_, i) => i !== index));
+  };
+
   return (
-      <form
-          onSubmit={submitProject}
-          style={{ display: "grid", gap: 18, maxWidth: 720 }}
-      >
-        <input type="hidden" name="id" value={project?.id || ""} />
-        <input type="hidden" name="imageCount" value={rows.length} />
+    <form onSubmit={submitProject} style={{ display: "grid", gap: 24, maxWidth: 800, margin: "0 auto" }}>
+      <input type="hidden" name="id" value={project?.id || ""} />
 
-        <label style={{ display: "grid", gap: 6 }}>
-          Titre
-          <input
-              name="title"
-              required
-              defaultValue={project?.title}
-              style={inputStyle}
-          />
-        </label>
+      <label style={{ display: "grid", gap: 6 }}>
+        Titre
+        <input name="title" required defaultValue={project?.title} style={inputStyle} />
+      </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          Ordre sur l’accueil
-          <input
-              name="order"
-              type="number"
-              defaultValue={project?.order ?? 1}
-              style={inputStyle}
-          />
-        </label>
+      <label style={{ display: "grid", gap: 6 }}>
+        Ordre sur l’accueil
+        <input name="order" type="number" defaultValue={project?.order ?? 1} style={inputStyle} />
+      </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          Position de la photo dans la grille
-          <select
-              name="homeLayout"
-              defaultValue={project?.homeLayout ?? "mediumleft"}
-              style={inputStyle}
-          >
-            {HOME_LAYOUTS.map((layout) => (
-                <option key={layout} value={layout}>
-                  {layout}
-                </option>
-            ))}
-          </select>
-        </label>
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input type="checkbox" name="showOnHome" defaultChecked={project?.showOnHome ?? true} />
+        Afficher sur la page d’accueil
+      </label>
 
-        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input
-              type="checkbox"
-              name="showOnHome"
-              defaultChecked={project?.showOnHome ?? true}
-          />
-          Afficher sur la page d’accueil
-        </label>
+      <div style={{ display: "grid", gap: 40 }}>
+        {blocks.map((block, index) => (
+          <fieldset key={index} style={{ border: "1px solid #ccc", padding: 20, display: "grid", gap: 16, position: "relative" }}>
+            <legend style={{ padding: "0 10px", fontWeight: "bold" }}>
+              Bloc {index + 1} : {block.type === 'image' ? 'Image' : block.type === 'text' ? 'Texte' : 'Infos'}
+            </legend>
 
-        <div style={{ display: "grid", gap: 24 }}>
-          {rows.map((row, index) => (
-              <fieldset
-                  key={`${row.existingSrc}-${index}`}
-                  style={{ border: "1px solid #ccc", padding: 16, display: "grid", gap: 12 }}
-              >
-                <legend>Photo {index + 1}</legend>
-                <input type="hidden" name={`existingSrc-${index}`} value={row.existingSrc} />
-                {(row.preview || row.existingSrc) && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={row.preview || row.existingSrc}
-                        alt=""
-                        style={{ width: "100%", maxWidth: 420, height: "auto" }}
-                    />
-                )}
-                <label style={{ display: "grid", gap: 6 }}>
-                  Image
-                  <input
-                      type="file"
-                      name={`file-${index}`}
-                      accept="image/*"
-                      required={!row.existingSrc}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (!file) return;
-                        const preview = URL.createObjectURL(file);
-                        setRows((current) =>
-                            current.map((item, i) =>
-                                i === index ? { ...item, file, preview } : item,
-                            ),
-                        );
-                      }}
-                  />
-                </label>
-                <div style={{ display: "grid", gap: 6 }}>
-                  <span>Légende sous la photo</span>
-                  <Wysiwyg
-                      name={`caption-${index}`}
-                      initialHtml={row.caption}
-                      onChange={(caption) =>
-                          setRows((current) =>
-                              current.map((item, i) =>
-                                  i === index ? { ...item, caption } : item,
-                              ),
-                          )
-                      }
-                  />
+            {block.type === 'image' && (
+              <div style={{ display: "grid", gap: 12 }}>
+                <input
+                  type="file"
+                  name={`file-${index}`}
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      updateBlock(index, { src: URL.createObjectURL(file) });
+                    }
+                  }}
+                />
+                <div style={{ display: "flex", gap: 12 }}>
+                  <label style={{ fontSize: 12 }}>Largeur:
+                    <select value={block.width} onChange={e => updateBlock(index, { width: e.target.value as any })} style={inputStyle}>
+                      <option value="full">Pleine</option>
+                      <option value="half">Moitié</option>
+                      <option value="third">Tiers</option>
+                    </select>
+                  </label>
+                  <label style={{ fontSize: 12 }}>Alignement:
+                    <select value={block.align} onChange={e => updateBlock(index, { align: e.target.value as any })} style={inputStyle}>
+                      <option value="left">Gauche</option>
+                      <option value="center">Centre</option>
+                      <option value="right">Droite</option>
+                    </select>
+                  </label>
                 </div>
-                {rows.length > 1 ? (
-                    <button
-                        type="button"
-                        onClick={() => setRows((current) => current.filter((_, i) => i !== index))}
-                        style={ghostButton}
-                    >
-                      Retirer cette photo
-                    </button>
-                ) : null}
-              </fieldset>
-          ))}
-        </div>
+                <Wysiwyg
+                  name={`caption-${index}`}
+                  initialHtml={block.caption}
+                  onChange={(html: string) => updateBlock(index, { caption: html })}
+                />
+              </div>
+            )}
 
-        <button
-            type="button"
-            onClick={() =>
-                setRows((current) => [...current, { existingSrc: "", caption: "" }])
-            }
-            style={ghostButton}
-        >
-          Ajouter une photo
-        </button>
+            {block.type === 'text' && (
+              <div style={{ display: "grid", gap: 12 }}>
+                <label style={{ fontSize: 12 }}>Alignement:
+                  <select value={block.align} onChange={e => updateBlock(index, { align: e.target.value as any })} style={inputStyle}>
+                    <option value="left">Gauche</option>
+                    <option value="center">Centre</option>
+                    <option value="right">Droite</option>
+                  </select>
+                </label>
+                <Wysiwyg
+                  name={`text-${index}`}
+                  initialHtml={block.content}
+                  onChangeAction={(html: string) => updateBlock(index, { content: html })}
+                />
+              </div>
+            )}
 
-        <button type="submit" style={solidButton}>
-          {uploading ? "Envoi des images…" : "Enregistrer"}
-        </button>
+            {block.type === 'info' && (
+              <div style={{ display: "grid", gap: 12 }}>
+                {block.items.map((item, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8 }}>
+                    <input
+                      placeholder="Label"
+                      value={item.label}
+                      onChange={e => {
+                        const newItems = [...block.items];
+                        newItems[i].label = e.target.value;
+                        updateBlock(index, { items: newItems });
+                      }}
+                      style={inputStyle}
+                    />
+                    <input
+                      placeholder="Valeur"
+                      value={item.value}
+                      onChange={e => {
+                        const newItems = [...block.items];
+                        newItems[i].value = e.target.value;
+                        updateBlock(index, { items: newItems });
+                      }}
+                      style={inputStyle}
+                    />
+                  </div>
+                ))}
+                <button type="button" onClick={() => {
+                  const newItems = [...block.items, { label: '', value: '' }];
+                  updateBlock(index, { items: newItems });
+                }} style={ghostButton}>+ Ajouter ligne</button>
+              </div>
+            )}
 
-        {uploadError ? <p style={{ margin: 0, color: "#a10" }}>{uploadError}</p> : null}
+            <button type="button" onClick={() => removeBlock(index)} style={{ ...ghostButton, color: 'red', width: 'fit-content' }}>Supprimer le bloc</button>
+          </fieldset>
+        ))}
+      </div>
 
-        {project ? (
-            <button
-                type="button"
-                style={{ ...ghostButton, color: "#a10" }}
-                onClick={async () => {
-                  if (confirm("Supprimer ce projet ?")) {
-                    const formData = new FormData();
-                    formData.append("id", project.id);
-                    await deleteProjectAction(formData);
-                  }
-                }}
-            >
-              Supprimer
-            </button>
-        ) : null}
-      </form>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" onClick={() => addBlock('image')} style={ghostButton}>+ Ajouter Image</button>
+        <button type="button" onClick={() => addBlock('text')} style={ghostButton}>+ Ajouter Texte</button>
+        <button type="button" onClick={() => addBlock('info')} style={ghostButton}>+ Ajouter Tableau Infos</button>
+      </div>
+
+      <button type="submit" style={solidButton}>
+        {uploading ? "Envoi en cours..." : "Enregistrer le projet"}
+      </button>
+
+      {uploadError && <p style={{ color: 'red' }}>{uploadError}</p>}
+
+      {project && (
+        <button type="button" style={{ ...ghostButton, color: 'red' }} onClick={async () => {
+          if(confirm("Supprimer ?")) {
+            const fd = new FormData();
+            fd.append("id", project.id);
+            await deleteProjectAction(fd);
+          }
+        }}>Supprimer Projet</button>
+      )}
+    </form>
   );
 }
 
@@ -260,6 +271,7 @@ const inputStyle: React.CSSProperties = {
   padding: "8px 10px",
   fontSize: 16,
   background: "#fff",
+  color: "#000",
 };
 
 const ghostButton: React.CSSProperties = {
@@ -267,14 +279,15 @@ const ghostButton: React.CSSProperties = {
   background: "transparent",
   padding: "8px 12px",
   cursor: "pointer",
-  width: "fit-content",
+  fontSize: 14,
 };
 
 const solidButton: React.CSSProperties = {
   border: "1px solid #111",
   background: "#111",
   color: "#fff",
-  padding: "10px 16px",
+  padding: "12px 24px",
   cursor: "pointer",
-  width: "fit-content",
+  fontSize: 16,
+  fontWeight: "bold",
 };

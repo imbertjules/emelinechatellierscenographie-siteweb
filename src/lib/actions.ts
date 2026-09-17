@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { checkPassword, clearAdminCookie, requireAdmin, setAdminCookie } from "./auth";
-import { HOME_LAYOUTS } from "./types";
-import type { HomeLayout, Project, ProjectImage } from "./types";
+import { HOME_LAYOUTS, HomeLayout, Project, ProjectImage, ProjectBlock } from "./types";
 import { readSite, slugify, writeSite } from "./store";
 import { saveUpload, deleteUploadByUrl } from "./uploads";
 
@@ -104,7 +103,24 @@ export async function saveProjectAction(formData: FormData) {
   }
 
   const current = site.projects.find((p) => p.id === id);
-  const images = await imagesFromForm(formData, current?.images || []);
+
+  // Parse structured data from form
+  const contentStr = formData.get("content") as string || "[]";
+  const imagesStr = formData.get("images") as string || "[]";
+
+  let content: ProjectBlock[] = [];
+  try {
+    content = JSON.parse(contentStr);
+  } catch (e) {
+    console.error("Failed to parse content JSON", e);
+  }
+
+  let images: ProjectImage[] = [];
+  try {
+    images = JSON.parse(imagesStr);
+  } catch (e) {
+    console.error("Failed to parse images JSON", e);
+  }
 
   const layout = String(formData.get("homeLayout") || "") as HomeLayout;
   const project: Project = {
@@ -117,6 +133,7 @@ export async function saveProjectAction(formData: FormData) {
         : HOME_LAYOUTS[site.projects.length % HOME_LAYOUTS.length],
     order: Number(formData.get("order") || current?.order || site.projects.length + 1),
     images,
+    content,
   };
 
   const index = site.projects.findIndex((p) => p.id === id);

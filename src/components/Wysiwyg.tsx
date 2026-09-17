@@ -44,7 +44,9 @@ export function Wysiwyg({
 
     const update = () => {
       const html = editor.getHTML();
-      if (inputRef.current) inputRef.current.value = html; // Wait, there's a typo here in my thought, should be inputRef.current.value
+      if (inputRef.current) {
+        inputRef.current.value = html;
+      }
       onChangeRef.current?.(html);
       refreshToolbar((value) => value + 1);
     };
