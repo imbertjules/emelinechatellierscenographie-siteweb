@@ -6,7 +6,20 @@ import { Wysiwyg } from "@/components/Wysiwyg";
 export function AboutForm({ initialHtml }: { initialHtml: string }) {
   async function submitAbout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+
+    // Ensure the hidden input matches the editor content (in case tiptap update didn't sync)
+    try {
+      const editorEl = form.querySelector('.ProseMirror');
+      const hidden = form.querySelector(`input[name="aboutHtml"]`) as HTMLInputElement | null;
+      if (editorEl && hidden) {
+        hidden.value = editorEl.innerHTML;
+      }
+    } catch (e) {
+      // no-op
+    }
+
+    const formData = new FormData(form);
     console.log('AboutForm submit, aboutHtml=', formData.get('aboutHtml'));
 
     try {
