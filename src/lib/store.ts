@@ -67,6 +67,10 @@ export async function readSite(): Promise<SiteData> {
     return JSON.parse(raw) as SiteData;
   } catch (e) {
     const initial = emptySite();
+    if (runningInProd && !useSupabase) {
+      // In production build environments we avoid attempting local writes; return empty site in memory.
+      return initial;
+    }
     await writeSite(initial);
     return initial;
   }
