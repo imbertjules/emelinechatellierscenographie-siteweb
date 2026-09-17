@@ -24,7 +24,8 @@ export default async function ProjectPage({
   return (
     <main className="project-page bg-black text-white min-h-screen">
       <SiteHeader settings={site.settings} />
-      <div className="grid grid-cols-12 gap-y-48 gap-x-8 max-w-[1600px] mx-auto px-8 py-32">
+      <div className="grid grid-cols-12 gap-y-48 gap-x-8 max-w-[1600px] mx-auto px-8 py-32 border-4 border-red-600">
+        <div className="col-span-12 text-red-500 font-bold text-center mb-10 text-2xl">DEBUG: NOUVEAU DESIGN ACTIVÉ</div>
         {project.images.map((image, index) => {
           const pattern = index % 4;
           const layoutClasses =
