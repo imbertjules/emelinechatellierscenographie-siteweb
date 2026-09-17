@@ -11,6 +11,7 @@ export default async function HomePage() {
 
   return (
     <main>
+      <div className="bg-red-600 text-white text-center py-2 font-bold">TEST DE DEPLOIEMENT - VERSION 2.0</div>
       <SiteHeader settings={site.settings} current="home" />
       <section className="grid grid-cols-12 gap-y-32 gap-x-8 max-w-[1600px] mx-auto px-8 py-32">
         {projects.map((project, index) => {
