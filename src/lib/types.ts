@@ -5,8 +5,7 @@ export type ProjectImage = {
 
 export type ProjectBlock =
   | { type: 'image'; src: string; caption: string; width: 'full' | 'half' | 'third'; align: 'left' | 'center' | 'right' }
-  | { type: 'text'; content: string; align: 'left' | 'center' | 'right' }
-  | { type: 'info'; items: { label: string; value: string }[] };
+  | { type: 'text'; content: string; align: 'left' | 'center' | 'right' };
 
 export type HomeProjectWidth = "small" | "medium" | "large" | "full";
 export type HomeProjectAlign = "left" | "center" | "right";

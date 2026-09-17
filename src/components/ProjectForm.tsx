@@ -71,9 +71,9 @@ export function ProjectForm({ project }: { project?: Project }) {
 
   const addBlock = (type: ProjectBlock['type']) => {
     const newBlock: ProjectBlock =
-      type === 'image' ? { type: 'image', src: '', caption: '', width: 'full', align: 'center' } :
-      type === 'text' ? { type: 'text', content: '', align: 'left' } :
-      { type: 'info', items: [{ label: '', value: '' }] };
+      type === 'image'
+        ? { type: 'image', src: '', caption: '', width: 'full', align: 'center' }
+        : { type: 'text', content: '', align: 'left' };
     setBlocks([...blocks, newBlock]);
   };
 
@@ -129,7 +129,7 @@ export function ProjectForm({ project }: { project?: Project }) {
         {blocks.map((block, index) => (
           <fieldset key={index} style={{ border: "1px solid #ccc", padding: 20, display: "grid", gap: 16, position: "relative" }}>
             <legend style={{ padding: "0 10px", fontWeight: "bold" }}>
-              Bloc {index + 1} : {block.type === 'image' ? 'Image' : block.type === 'text' ? 'Texte' : 'Infos'}
+              Bloc {index + 1} : {block.type === 'image' ? 'Image' : 'Texte'}
             </legend>
 
             {block.type === 'image' && (
@@ -218,39 +218,6 @@ export function ProjectForm({ project }: { project?: Project }) {
               </div>
             )}
 
-            {block.type === 'info' && (
-              <div style={{ display: "grid", gap: 12 }}>
-                {block.items.map((item, i) => (
-                  <div key={i} style={{ display: "flex", gap: 8 }}>
-                    <input
-                      placeholder="Label"
-                      value={item.label}
-                      onChange={e => {
-                        const newItems = [...block.items];
-                        newItems[i].label = e.target.value;
-                        updateBlock(index, { items: newItems });
-                      }}
-                      style={inputStyle}
-                    />
-                    <input
-                      placeholder="Valeur"
-                      value={item.value}
-                      onChange={e => {
-                        const newItems = [...block.items];
-                        newItems[i].value = e.target.value;
-                        updateBlock(index, { items: newItems });
-                      }}
-                      style={inputStyle}
-                    />
-                  </div>
-                ))}
-                <button type="button" onClick={() => {
-                  const newItems = [...block.items, { label: '', value: '' }];
-                  updateBlock(index, { items: newItems });
-                }} style={ghostButton}>+ Ajouter ligne</button>
-              </div>
-            )}
-
             <button type="button" onClick={() => removeBlock(index)} style={{ ...ghostButton, color: 'red', width: 'fit-content' }}>Supprimer le bloc</button>
           </fieldset>
         ))}
@@ -259,7 +226,6 @@ export function ProjectForm({ project }: { project?: Project }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button type="button" onClick={() => addBlock('image')} style={ghostButton}>+ Ajouter Image</button>
         <button type="button" onClick={() => addBlock('text')} style={ghostButton}>+ Ajouter Texte</button>
-        <button type="button" onClick={() => addBlock('info')} style={ghostButton}>+ Ajouter Tableau Infos</button>
       </div>
 
       <button type="submit" style={solidButton}>

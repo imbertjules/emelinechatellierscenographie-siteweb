@@ -91,19 +91,6 @@ export default async function ProjectPage({
               );
             }
 
-            if (block.type === 'info') {
-              return (
-                <div key={index} className="border-t border-b border-white/20 py-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 text-sm opacity-90">
-                  {block.items.map((item, i) => (
-                    <div key={i} className="flex justify-between border-b border-white/10 pb-2">
-                      <span className="font-bold uppercase text-xs opacity-60">{item.label}</span>
-                      <span className="text-right">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            }
-
             return null;
           })}
         </div>
