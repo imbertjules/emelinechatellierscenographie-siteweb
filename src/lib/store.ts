@@ -1,18 +1,22 @@
 import type { SiteData } from "./types";
 import { createClient } from "@supabase/supabase-js";
+import { readFile, writeFile, mkdir, stat } from "fs/promises";
+import path from "path";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.");
-}
+const useSupabase = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false },
-});
+const supabase = useSupabase
+  ? createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
+      auth: { persistSession: false },
+    })
+  : null;
 
 const SITE_ID = "main";
+const LOCAL_DATA_DIR = path.join(process.cwd(), "data");
+const LOCAL_SITE_FILE = path.join(LOCAL_DATA_DIR, "site.json");
 
 const emptySite = (): SiteData => ({
   settings: {
@@ -24,31 +28,58 @@ const emptySite = (): SiteData => ({
   projects: [],
 });
 
+async function ensureLocalDir() {
+  try {
+    await stat(LOCAL_DATA_DIR);
+  } catch (e) {
+    await mkdir(LOCAL_DATA_DIR, { recursive: true });
+  }
+}
+
 export async function readSite(): Promise<SiteData> {
-  const { data, error } = await supabase.from("site").select("data").eq("id", SITE_ID).maybeSingle();
-  if (error) {
-    console.error("Erreur Supabase readSite:", error);
-    return emptySite();
+  if (useSupabase && supabase) {
+    const { data, error } = await supabase.from("site").select("data").eq("id", SITE_ID).maybeSingle();
+    if (error) {
+      console.error("Erreur Supabase readSite:", error);
+      return emptySite();
+    }
+
+    if (!data || !data.data) {
+      const initial = emptySite();
+      await writeSite(initial);
+      return initial;
+    }
+
+    return data.data as SiteData;
   }
 
-  if (!data || !data.data) {
-    // create initial row
+  // Fallback to local file for dev / when env vars are not provided
+  try {
+    await ensureLocalDir();
+    const raw = await readFile(LOCAL_SITE_FILE, "utf-8");
+    return JSON.parse(raw) as SiteData;
+  } catch (e) {
     const initial = emptySite();
     await writeSite(initial);
     return initial;
   }
-
-  return data.data as SiteData;
 }
 
 export async function writeSite(dataToWrite: SiteData) {
-  const payload = dataToWrite;
-  const { error } = await supabase
-    .from("site")
-    .upsert({ id: SITE_ID, data: payload }, { returning: "minimal" });
-  if (error) {
-    throw new Error(`Erreur Supabase writeSite: ${error.message}`);
+  if (useSupabase && supabase) {
+    const payload = dataToWrite;
+    const { error } = await supabase
+      .from("site")
+      .upsert({ id: SITE_ID, data: payload }, { returning: "minimal" });
+    if (error) {
+      throw new Error(`Erreur Supabase writeSite: ${error.message}`);
+    }
+    return;
   }
+
+  // Fallback to local file
+  await ensureLocalDir();
+  await writeFile(LOCAL_SITE_FILE, JSON.stringify(dataToWrite, null, 2), "utf-8");
 }
 
 export function slugify(value: string) {
