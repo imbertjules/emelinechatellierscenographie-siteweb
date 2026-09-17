@@ -42,11 +42,13 @@ async function ensureLocalDir() {
 
 export async function readSite(): Promise<SiteData> {
   if (useSupabase && supabase) {
-    const { data, error } = await supabase.from("site").select("data").eq("id", SITE_ID).maybeSingle();
+    const { data, error } = await supabase.from("site").select("id,data").eq("id", SITE_ID).maybeSingle();
     if (error) {
       console.error("Erreur Supabase readSite:", error);
       return emptySite();
     }
+
+    console.log('readSite: supabase returned', !!data, data?.id ? 'id='+data.id : '', data && data.data ? 'has data' : 'no data');
 
     if (!data || !data.data) {
       const initial = emptySite();
@@ -79,12 +81,26 @@ export async function readSite(): Promise<SiteData> {
 export async function writeSite(dataToWrite: SiteData) {
   if (useSupabase && supabase) {
     const payload = dataToWrite;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("site")
       .upsert({ id: SITE_ID, data: payload });
     if (error) {
+      console.error('writeSite: upsert error', error);
       throw new Error(`Erreur Supabase writeSite: ${error.message}`);
     }
+
+    // confirm insert/update
+    try {
+      const { data: confirm, error: confirmErr } = await supabase.from("site").select("id,data").eq("id", SITE_ID).maybeSingle();
+      if (confirmErr) {
+        console.error('writeSite: confirm select error', confirmErr);
+      } else {
+        console.log('writeSite: confirm row present:', !!confirm, confirm?.id, confirm?.data ? 'has data' : 'no data');
+      }
+    } catch (e) {
+      console.error('writeSite: confirm exception', e);
+    }
+
     return;
   }
 
