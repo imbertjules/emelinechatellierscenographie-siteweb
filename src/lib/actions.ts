@@ -6,8 +6,7 @@ import { checkPassword, clearAdminCookie, requireAdmin, setAdminCookie } from ".
 import { HOME_LAYOUTS } from "./types";
 import type { HomeLayout, Project, ProjectImage } from "./types";
 import { readSite, slugify, writeSite } from "./store";
-import { saveUpload } from "./uploads";
-import { del } from "@vercel/blob";
+import { saveUpload, deleteUploadByUrl } from "./uploads";
 
 function revalidatePublic() {
   revalidatePath("/");
@@ -125,14 +124,12 @@ export async function deleteProjectAction(formData: FormData) {
 
   const projectToDelete = site.projects.find((p) => p.id === id);
 
-  if (projectToDelete && process.env.BLOB_READ_WRITE_TOKEN) {
+  if (projectToDelete) {
     for (const img of projectToDelete.images) {
-      if (img.src.includes("vercel-storage.com") || img.src.includes("public.blob.vercel-storage.com")) {
-        try {
-          await del(img.src, { token: process.env.BLOB_READ_WRITE_TOKEN });
-        } catch (e) {
-          console.error("Erreur lors de la suppression de l'image blob:", e);
-        }
+      try {
+        await deleteUploadByUrl(img.src);
+      } catch (e) {
+        console.error("Erreur lors de la suppression de l'image:", e);
       }
     }
   }

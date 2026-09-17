@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { upload } from "@vercel/blob/client";
 import { HOME_LAYOUTS } from "@/lib/types";
 import type { Project } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
@@ -69,47 +68,8 @@ export function ProjectForm({ project }: { project?: Project }) {
     const formData = new FormData(form);
     formData.set("imageCount", rows.length.toString());
 
-    // Les images sont téléversées directement depuis le navigateur vers Blob.
-    // Ne pas les renvoyer à l'action serveur une seconde fois.
-    rows.forEach((_, index) => formData.delete(`file-${index}`));
-
-    const filesToUpload = rows
-        .map((row, index) => ({ file: row.file, index }))
-        .filter((row): row is { file: File; index: number } => Boolean(row.file));
-
-    if (filesToUpload.length === 0) {
-      await saveProjectAction(formData);
-      return;
-    }
-
-    setUploading(true);
-    setUploadError("");
-
-    try {
-      const uploaded = await Promise.all(
-          filesToUpload.map(async ({ file, index }) => {
-              const optimizedFile = await optimizeImage(file);
-              const filename = optimizedFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-              const blob = await upload(`uploads/${Date.now()}-${index}-${filename}`, optimizedFile, {
-                access: "public",
-                contentType: optimizedFile.type || undefined,
-              handleUploadUrl: "/api/upload",
-              multipart: true,
-            });
-            return { index, url: blob.url };
-          }),
-      );
-
-      for (const { index, url } of uploaded) {
-        formData.set(`existingSrc-${index}`, url);
-      }
-      await saveProjectAction(formData);
-    } catch (error) {
-      setUploadError(
-          error instanceof Error ? error.message : "L’envoi des images a échoué.",
-      );
-      setUploading(false);
-    }
+    // Envoyer les fichiers au serveur; la logique d'upload est maintenant côté serveur (Supabase).
+    await saveProjectAction(formData);
   }
 
   return (
@@ -184,6 +144,7 @@ export function ProjectForm({ project }: { project?: Project }) {
                   Image
                   <input
                       type="file"
+                      name={`file-${index}`}
                       accept="image/*"
                       required={!row.existingSrc}
                       onChange={(event) => {

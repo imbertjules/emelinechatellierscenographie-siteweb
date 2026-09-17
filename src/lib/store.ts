@@ -1,8 +1,18 @@
-import { head, list, put } from "@vercel/blob";
 import type { SiteData } from "./types";
+import { createClient } from "@supabase/supabase-js";
 
-const BLOB_KEY = "site.json";
-const VERSIONED_PREFIX = "site-";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
+
+const SITE_ID = "main";
 
 const emptySite = (): SiteData => ({
   settings: {
@@ -15,47 +25,30 @@ const emptySite = (): SiteData => ({
 });
 
 export async function readSite(): Promise<SiteData> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) {
-    console.error("ERREUR CRITIQUE: BLOB_READ_WRITE_TOKEN manquant en prod.");
+  const { data, error } = await supabase.from("site").select("data").eq("id", SITE_ID).maybeSingle();
+  if (error) {
+    console.error("Erreur Supabase readSite:", error);
     return emptySite();
   }
 
-  const versioned = await list({ prefix: VERSIONED_PREFIX, limit: 100, token });
-  const latestVersion = versioned.blobs
-    .filter((blob) => blob.pathname.endsWith(".json"))
-    .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
-  const details = latestVersion || await head(BLOB_KEY, { token });
-  if (!details) {
-    const site = emptySite();
-    await writeSite(site);
-    return site;
+  if (!data || !data.data) {
+    // create initial row
+    const initial = emptySite();
+    await writeSite(initial);
+    return initial;
   }
 
-  const response = await fetch(details.url, {
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Impossible de lire ${details.pathname}: ${response.status}`);
-  }
-
-  return (await response.json()) as SiteData;
+  return data.data as SiteData;
 }
 
-export async function writeSite(data: SiteData) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) {
-    throw new Error("ERREUR CRITIQUE: BLOB_READ_WRITE_TOKEN manquant en prod pour l'écriture.");
+export async function writeSite(dataToWrite: SiteData) {
+  const payload = dataToWrite;
+  const { error } = await supabase
+    .from("site")
+    .upsert({ id: SITE_ID, data: payload }, { returning: "minimal" });
+  if (error) {
+    throw new Error(`Erreur Supabase writeSite: ${error.message}`);
   }
-
-  const payload = JSON.stringify(data, null, 2);
-
-  await put(`${VERSIONED_PREFIX}${Date.now()}-${crypto.randomUUID()}.json`, payload, {
-    access: "public",
-    addRandomSuffix: false,
-    contentType: "application/json",
-    token,
-  });
 }
 
 export function slugify(value: string) {
