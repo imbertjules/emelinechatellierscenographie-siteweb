@@ -33,8 +33,6 @@ export type Project = {
   homeWidth?: HomeProjectWidth;
   homeAlign?: HomeProjectAlign;
   order: number;
-  // We keep images for backward compatibility and the home page,
-  // but we add content for the detailed page.
   images: ProjectImage[];
   content?: ProjectBlock[];
 };
