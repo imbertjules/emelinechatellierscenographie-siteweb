@@ -54,7 +54,7 @@ export function ProjectForm({ project }: { project?: Project }) {
 
       const finalBlocks = [...blocks];
       uploadedImages.forEach(({ index, url }) => {
-        if (finalBlocks[index]?.type === 'image') {
+        if (isImageBlock(finalBlocks[index])) {
           finalBlocks[index].src = url;
         }
       });
@@ -64,7 +64,7 @@ export function ProjectForm({ project }: { project?: Project }) {
       // if available, otherwise clear the src so we don't store an invalid blob URL.
       for (let i = 0; i < finalBlocks.length; i += 1) {
         const b = finalBlocks[i];
-        if (b.type === 'image' && typeof b.src === 'string' && b.src.startsWith('blob:')) {
+        if (isImageBlock(b) && b.src.startsWith('blob:')) {
           // Prefer matching content block src if present and it's an image
           const contentBlock = project?.content?.[i];
           let fallback = project?.images?.[i]?.src ?? "";
@@ -77,7 +77,7 @@ export function ProjectForm({ project }: { project?: Project }) {
       }
 
       const homeImages = finalBlocks
-        .filter(b => b.type === 'image')
+        .filter(isImageBlock)
         .map(b => ({ src: b.src, caption: b.caption }));
 
       formData.set("content", JSON.stringify(finalBlocks));
