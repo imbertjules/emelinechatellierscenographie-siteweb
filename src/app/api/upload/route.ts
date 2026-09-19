@@ -10,10 +10,16 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const files: Array<{ index: number; file: File }> = [];
 
+    // The client sends pairs: file-<i>=File and index-<i>=<blockIndex>
+    // Read file entries, then look up the corresponding index-<i> value so
+    // we replace the correct block.src (and avoid saving blob: URLs).
     for (const [key, value] of form.entries()) {
       if (key.startsWith('file-') && value instanceof File) {
-        const index = Number(key.split('-')[1]);
-        files.push({ index, file: value });
+        const i = Number(key.split('-')[1]);
+        const indexField = form.get(`index-${i}`);
+        // form.get() returns FormDataEntryValue (string | File); parse string value safely
+        const blockIndex = typeof indexField === 'string' ? Number(indexField) : NaN;
+        files.push({ index: Number.isFinite(blockIndex) ? blockIndex : i, file: value });
       }
     }
 
