@@ -6,7 +6,7 @@ import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
 
 export function ProjectForm({ project }: { project?: Project }) {
-  // Type guard to narrow ProjectBlock to image block without using `any`
+  // Type guard to narrow ProjectBlock to image block without unsafe casts
   function isImageBlock(b: ProjectBlock | undefined): b is Extract<ProjectBlock, { type: 'image' }> {
     return !!b && b.type === 'image';
   }

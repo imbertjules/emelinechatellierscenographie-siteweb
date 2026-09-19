@@ -48,7 +48,7 @@ export default async function HomePage() {
               />
               {project.images[0].caption ? (
                 <div
-                  className="block font-serif font-bold text-[16px] leading-tight mt-6 max-w-md text-white opacity-90"
+                  className="block font-georgia font-bold text-[16px] leading-tight mt-2 max-w-md text-white opacity-90"
                   dangerouslySetInnerHTML={{ __html: project.images[0].caption }}
                 />
               ) : null}
