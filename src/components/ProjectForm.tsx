@@ -6,6 +6,11 @@ import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
 
 export function ProjectForm({ project }: { project?: Project }) {
+  // Type guard to narrow ProjectBlock to image block without using `any`
+  function isImageBlock(b: ProjectBlock | undefined): b is Extract<ProjectBlock, { type: 'image' }> {
+    return !!b && b.type === 'image';
+  }
+
   const [blocks, setBlocks] = useState<ProjectBlock[]>(
     project?.content ||
     project?.images.map(img => ({
@@ -60,9 +65,13 @@ export function ProjectForm({ project }: { project?: Project }) {
       for (let i = 0; i < finalBlocks.length; i += 1) {
         const b = finalBlocks[i];
         if (b.type === 'image' && typeof b.src === 'string' && b.src.startsWith('blob:')) {
-          const fallback = project?.content?.[i]?.type === 'image'
-            ? project?.content?.[i]?.src
-            : project?.images?.[i]?.src;
+          // Prefer matching content block src if present and it's an image
+          const contentBlock = project?.content?.[i];
+          let fallback = project?.images?.[i]?.src ?? "";
+          if (contentBlock && contentBlock.type === 'image') {
+            // contentBlock is narrowed to image block by discriminated union
+            fallback = contentBlock.src || fallback;
+          }
           finalBlocks[i].src = fallback || "";
         }
       }
