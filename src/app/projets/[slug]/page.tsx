@@ -48,38 +48,54 @@ export default async function ProjectPage({
         <div className="space-y-32">
           {(() => {
             const nodes = [] as React.ReactNode[];
-            const offsets = [0, 64, 32, 96];
-            // base offset per project derived from slug to vary spacing
-            const slugHash = project.slug.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-            const base = slugHash % offsets.length;
+
             for (let i = 0; i < blocks.length; i += 1) {
               const block = blocks[i];
+              const next = blocks[i + 1];
 
-              // If an image block is followed by a text block and the image is half-width,
-              // render them side-by-side on md+ screens.
-              if (block.type === 'image') {
-                const next = blocks[i + 1];
-                const isPair = next !== undefined && next.type === 'text' && block.width === 'half';
+              // If both current and next are half-width, render them side-by-side.
+              // Only image blocks have a width property; check types before accessing
+              const canPairHalf = block.type === 'image' && next && next.type === 'image' && block.width === 'half' && next.width === 'half';
 
-                if (isPair) {
-                  // next is narrowed to text block by the check above
-                  const mt = offsets[(base + i) % offsets.length];
-                  nodes.push(
-                    <div key={`pair-${i}`} className="flex flex-col md:flex-row md:items-start gap-6" style={{ marginTop: mt }}>
-                      <div className="w-full md:w-1/2">
-                        <img src={block.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
-                        {block.caption && (
-                          <div className="caption-tight text-sm md:text-base leading-relaxed font-georgia opacity-80 max-w-2xl" dangerouslySetInnerHTML={{ __html: block.caption }} />
-                        )}
-                      </div>
-                      <div className="w-full md:w-1/2 text-lg md:text-xl leading-relaxed font-light">
-                        <div dangerouslySetInnerHTML={{ __html: next.content }} />
-                      </div>
+              if (canPairHalf) {
+                // @ts-ignore
+                nodes.push(
+                  <div key={`pair-${i}`} className="flex flex-col md:flex-row md:items-start gap-6">
+                    <div className="w-full md:w-1/2">
+                      {block.type === 'image' ? (
+                        <>
+                          <img src={block.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
+                          {block.caption && (
+                            <div className="caption-tight text-sm md:text-base leading-relaxed font-georgia opacity-80 max-w-2xl" dangerouslySetInnerHTML={{ __html: block.caption }} />
+                          )}
+                        </>
+                      ) : (
+                          // @ts-ignore
+                        <div className="text-lg md:text-xl leading-relaxed font-light" dangerouslySetInnerHTML={{ __html: block.content }} />
+                      )}
                     </div>
-                  );
-                  i += 1; // skip the next block because we've rendered the pair
-                  continue;
-                }
+
+                    <div className="w-full md:w-1/2">
+                      {next.type === 'image' ? (
+                        <>
+                          <img src={next.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
+                          {next.caption && (
+                            <div className="caption-tight text-sm md:text-base leading-relaxed font-georgia opacity-80 max-w-2xl" dangerouslySetInnerHTML={{ __html: next.caption }} />
+                          )}
+                        </>
+                      ) : (
+                          // @ts-ignore
+                        <div className="text-lg md:text-xl leading-relaxed font-light" dangerouslySetInnerHTML={{ __html: next.content }} />
+                      )}
+                    </div>
+                  </div>
+                );
+                i += 1; // skip next
+                continue;
+              }
+
+              // Single block fallback
+              if (block.type === 'image') {
                 const widthClass = {
                   full: 'w-full',
                   half: 'w-full md:w-1/2',
@@ -92,10 +108,8 @@ export default async function ProjectPage({
                   right: 'ml-auto'
                 }[block.align];
 
-                const mt = offsets[(base + i) % offsets.length];
-
                 nodes.push(
-                  <div key={i} className={`flex flex-col ${widthClass} ${alignClass}`} style={{ marginTop: mt }}>
+                  <div key={i} className={`flex flex-col ${widthClass} ${alignClass}`}>
                     <img src={block.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
                     {block.caption && (
                       <div className="caption-tight text-sm md:text-base leading-relaxed font-georgia opacity-80 max-w-2xl" dangerouslySetInnerHTML={{ __html: block.caption }} />
