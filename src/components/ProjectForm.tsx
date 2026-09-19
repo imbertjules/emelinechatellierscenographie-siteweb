@@ -19,6 +19,18 @@ export function ProjectForm({ project }: { project?: Project }) {
   );
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [inputFont, setInputFont] = useState<'helvetica'|'georgia'>('helvetica');
+
+  // Apply selected font class to all inputs/textareas/selects in the form
+  function applyInputFont(form: HTMLFormElement | null, font: 'helvetica'|'georgia') {
+    if (!form) return;
+    const cls = font === 'georgia' ? 'typo-georgia' : 'typo-helvetica';
+    const remove = font === 'georgia' ? 'typo-helvetica' : 'typo-georgia';
+    form.querySelectorAll('input, textarea, select').forEach((el) => {
+      el.classList.remove(remove);
+      el.classList.add(cls);
+    });
+  }
 
   async function submitProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -171,8 +183,16 @@ export function ProjectForm({ project }: { project?: Project }) {
   };
 
   return (
-    <form onSubmit={submitProject} style={{ display: "grid", gap: 24, maxWidth: 800, margin: "0 auto" }}>
+    <form onSubmit={submitProject} style={{ display: "grid", gap: 24, maxWidth: 800, margin: "0 auto" }} ref={(f) => { if (f) applyInputFont(f, inputFont); }}>
       <input type="hidden" name="id" value={project?.id || ""} />
+
+      <label style={{ display: "grid", gap: 6 }}>
+        Police des champs (inputs)
+        <select name="inputFont" value={inputFont} onChange={(e) => { const val = e.target.value as 'helvetica'|'georgia'; setInputFont(val); applyInputFont(e.currentTarget.closest('form'), val); }} style={inputStyle}>
+          <option value="helvetica">Helvetica (par défaut)</option>
+          <option value="georgia">Georgia</option>
+        </select>
+      </label>
 
       <label style={{ display: "grid", gap: 6 }}>
         Titre
