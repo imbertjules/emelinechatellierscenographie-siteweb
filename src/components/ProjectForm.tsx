@@ -23,7 +23,16 @@ export function ProjectForm({ project }: { project?: Project }) {
   async function submitProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const formData = new FormData(form);
+    // Build a minimal FormData to send to the server action — avoid including file inputs
+    // which would keep File objects in the payload (and cause "Request Entity Too Large").
+    const formData = new FormData();
+    formData.append("id", (form.querySelector('input[name="id"]') as HTMLInputElement)?.value || "");
+    formData.append("title", (form.querySelector('input[name="title"]') as HTMLInputElement)?.value || "");
+    formData.append("order", String((form.querySelector('input[name="order"]') as HTMLInputElement)?.value || "1"));
+    formData.append("homeWidth", (form.querySelector('select[name="homeWidth"]') as HTMLSelectElement)?.value || "medium");
+    formData.append("homeAlign", (form.querySelector('select[name="homeAlign"]') as HTMLSelectElement)?.value || "center");
+    const showOnHomeEl = form.querySelector('input[name="showOnHome"]') as HTMLInputElement | null;
+    if (showOnHomeEl && showOnHomeEl.checked) formData.append("showOnHome", "on");
 
     const imagesToUpload: Array<{ file: File; blockIndex: number }> = [];
     blocks.forEach((block, index) => {
