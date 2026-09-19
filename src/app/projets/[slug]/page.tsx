@@ -40,7 +40,7 @@ export default async function ProjectPage({
       <SiteHeader settings={site.settings} />
       <div className="max-w-5xl mx-auto pt-32 pb-40 px-6">
         <div className="mb-24 mt-10">
-          <h1 className="text-4xl md:text-7xl font-serif italic leading-tight max-w-4xl">
+        <h1 className="text-4xl md:text-7xl font-georgia italic leading-tight max-w-4xl">
             {project.title}
           </h1>
         </div>
@@ -48,20 +48,24 @@ export default async function ProjectPage({
         <div className="space-y-32">
           {(() => {
             const nodes = [] as React.ReactNode[];
+            const offsets = [0, 64, 32, 96];
+            // base offset per project derived from slug to vary spacing
+            const slugHash = project.slug.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+            const base = slugHash % offsets.length;
             for (let i = 0; i < blocks.length; i += 1) {
               const block = blocks[i];
 
-              // If an image block is followed by a text block and both are half-width,
+              // If an image block is followed by a text block and the image is half-width,
               // render them side-by-side on md+ screens.
               if (block.type === 'image') {
                 const next = blocks[i + 1];
-                // Pair image + text when the image is half-width and the following block is text
                 const isPair = next !== undefined && next.type === 'text' && block.width === 'half';
 
                 if (isPair) {
                   // next is narrowed to text block by the check above
+                  const mt = offsets[(base + i) % offsets.length];
                   nodes.push(
-                    <div key={`pair-${i}`} className="flex flex-col md:flex-row md:items-start gap-6">
+                    <div key={`pair-${i}`} className="flex flex-col md:flex-row md:items-start gap-6" style={{ marginTop: mt }}>
                       <div className="w-full md:w-1/2">
                         <img src={block.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
                         {block.caption && (
@@ -76,7 +80,6 @@ export default async function ProjectPage({
                   i += 1; // skip the next block because we've rendered the pair
                   continue;
                 }
-
                 const widthClass = {
                   full: 'w-full',
                   half: 'w-full md:w-1/2',
@@ -89,8 +92,10 @@ export default async function ProjectPage({
                   right: 'ml-auto'
                 }[block.align];
 
+                const mt = offsets[(base + i) % offsets.length];
+
                 nodes.push(
-                  <div key={i} className={`flex flex-col ${widthClass} ${alignClass}`}>
+                  <div key={i} className={`flex flex-col ${widthClass} ${alignClass}`} style={{ marginTop: mt }}>
                     <img src={block.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
                     {block.caption && (
                       <div className="caption-tight text-sm md:text-base leading-relaxed font-georgia opacity-80 max-w-2xl" dangerouslySetInnerHTML={{ __html: block.caption }} />
