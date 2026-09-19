@@ -187,14 +187,6 @@ export function ProjectForm({ project }: { project?: Project }) {
       <input type="hidden" name="id" value={project?.id || ""} />
 
       <label style={{ display: "grid", gap: 6 }}>
-        Police des champs (inputs)
-        <select name="inputFont" value={inputFont} onChange={(e) => { const val = e.target.value as 'helvetica'|'georgia'; setInputFont(val); applyInputFont(e.currentTarget.closest('form'), val); }} style={inputStyle}>
-          <option value="helvetica">Helvetica (par défaut)</option>
-          <option value="georgia">Georgia</option>
-        </select>
-      </label>
-
-      <label style={{ display: "grid", gap: 6 }}>
         Titre
         <input name="title" required defaultValue={project?.title} style={inputStyle} />
       </label>
