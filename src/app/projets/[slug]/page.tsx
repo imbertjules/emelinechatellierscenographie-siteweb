@@ -40,7 +40,7 @@ export default async function ProjectPage({
       <SiteHeader settings={site.settings} />
       <div className="max-w-5xl mx-auto pt-32 pb-40 px-6">
         <div className="mb-24 mt-10">
-        <h1 className="text-4xl md:text-7xl font-georgia italic leading-tight max-w-4xl">
+        <h1 className="text-4xl md:text-7xl leading-tight max-w-4xl">
             {project.title}
           </h1>
         </div>
