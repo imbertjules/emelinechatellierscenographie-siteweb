@@ -54,8 +54,9 @@ export function ProjectForm({ project }: { project?: Project }) {
 
       const finalBlocks = [...blocks];
       uploadedImages.forEach(({ index, url }) => {
-        if (isImageBlock(finalBlocks[index])) {
-          finalBlocks[index].src = url;
+        const target = finalBlocks[index];
+        if (isImageBlock(target)) {
+          target.src = url;
         }
       });
 
@@ -72,7 +73,7 @@ export function ProjectForm({ project }: { project?: Project }) {
             // contentBlock is narrowed to image block by discriminated union
             fallback = contentBlock.src || fallback;
           }
-          finalBlocks[i].src = fallback || "";
+          b.src = fallback || "";
         }
       }
 
