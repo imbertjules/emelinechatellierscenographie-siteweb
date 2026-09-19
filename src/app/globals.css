@@ -34,6 +34,11 @@ body {
   margin-top: 0.5rem; /* closer than previous */
 }
 
+/* Force captions to use a single font and apply to all inner elements to avoid mixed fonts */
+.caption-tight, .caption-tight * {
+  font-family: Georgia, "Times New Roman", Times, serif !important;
+}
+
 .site-header {
   align-items: center; /* ensure logo and nav share height */
 }

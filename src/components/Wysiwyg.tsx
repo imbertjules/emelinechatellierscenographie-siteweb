@@ -6,6 +6,34 @@ import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
+import { Mark, mergeAttributes } from '@tiptap/core';
+
+// Custom mark to apply a CSS class to selected text (used for font choice)
+const FontMark = Mark.create({
+  name: 'font',
+  addOptions() {
+    return { HTMLAttributes: {} } as any;
+  },
+  addAttributes() {
+    return {
+      class: { default: null },
+    };
+  },
+  parseHTML() {
+    return [
+      { tag: 'span[class]' },
+    ];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['span', mergeAttributes(HTMLAttributes), 0];
+  },
+  addCommands() {
+    return {
+      setFont: (attrs: { class?: string }) => ({ commands }: any) => commands.setMark(this.name, attrs),
+      unsetFont: () => ({ commands }: any) => commands.unsetMark(this.name),
+    };
+  },
+});
 
 export function Wysiwyg({
   name,
@@ -30,6 +58,7 @@ export function Wysiwyg({
         HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
       }),
       Placeholder.configure({ placeholder: "Votre texte…" }),
+      FontMark,
     ],
     content: initialHtml,
     onSelectionUpdate: () => refreshToolbar((value) => value + 1),
@@ -84,6 +113,11 @@ export function Wysiwyg({
         <EditorButton active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} label="Italique"><em>I</em></EditorButton>
         <EditorButton active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} label="Souligné"><u>S</u></EditorButton>
         <EditorButton active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} label="Barré"><s>B</s></EditorButton>
+        <span className="editor-divider" />
+        {/* Font toggles: Georgia / Helvetica */}
+        <EditorButton active={editor.isActive('font', { class: 'typo-georgia' })} onClick={() => editor.chain().focus().setFont({ class: 'typo-georgia' }).run()} label="Georgia">GEO</EditorButton>
+        <EditorButton active={editor.isActive('font', { class: 'typo-helvetica' })} onClick={() => editor.chain().focus().setFont({ class: 'typo-helvetica' }).run()} label="Helvetica">HEL</EditorButton>
+        <EditorButton onClick={() => editor.chain().focus().unsetFont().run()} label="Réinitialiser police">reset</EditorButton>
         <span className="editor-divider" />
         <EditorButton active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} label="Liste à puces">•≡</EditorButton>
         <EditorButton active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} label="Liste numérotée">1≡</EditorButton>
