@@ -1,15 +1,76 @@
 import { notFound } from "next/navigation";
+import { SiteHeader } from "@/components/SiteHeader";
 import { readSite } from "@/lib/store";
-import { ProjectBlock } from "@/lib/types";
-import {SiteHeader} from "@/components/SiteHeader";
+import type { ProjectBlock } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+type BlockWidth = "full" | "large" | "medium" | "small" | "half" | "third";
+type BlockAlign = "left" | "center" | "right";
+
+const WIDTH_CLASSES: Record<BlockWidth, string> = {
+  full: "md:col-span-12",
+  large: "md:col-span-7",
+  medium: "md:col-span-5",
+  small: "md:col-span-4",
+  half: "md:col-span-6",
+  third: "md:col-span-4",
+};
+
+const START_CLASSES: Record<BlockAlign, string> = {
+  left: "md:col-start-1",
+  center: "md:col-start-4",
+  right: "md:col-start-8",
+};
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = await params;
   const site = await readSite();
   const project = site.projects.find((item) => item.slug === slug);
+
   return { title: project?.title ?? "Projet" };
+}
+
+function getBlockWidth(block: ProjectBlock): BlockWidth {
+  if ("width" in block && block.width) {
+    return block.width as BlockWidth;
+  }
+
+  return "full";
+}
+
+function getBlockAlign(block: ProjectBlock): BlockAlign {
+  if ("align" in block && block.align) {
+    return block.align as BlockAlign;
+  }
+
+  return "center";
+}
+
+function getBlockClassName(block: ProjectBlock, index: number) {
+  const width = getBlockWidth(block);
+  const align = getBlockAlign(block);
+
+  const classes = [
+    "project-block",
+    "col-span-12",
+    WIDTH_CLASSES[width],
+    width !== "full" ? START_CLASSES[align] : "",
+  ];
+
+  if (index % 3 === 1) {
+    classes.push("md:mt-20");
+  }
+
+  if (index % 3 === 2) {
+    classes.push("md:mt-36");
+  }
+
+  return classes.filter(Boolean).join(" ");
 }
 
 export default async function ProjectPage({
@@ -23,113 +84,60 @@ export default async function ProjectPage({
 
   if (!project) {
     notFound();
-    return null;
   }
 
-  // Fallback: if no content blocks defined, convert images to blocks
-  const blocks: ProjectBlock[] = project.content || project.images.map((img, i) => ({
-    type: 'image',
-    src: img.src,
-    caption: img.caption,
-    width: i === 0 ? 'full' : (i % 2 === 0 ? 'half' : 'third'),
-    align: i % 2 === 0 ? 'center' : (i % 3 === 0 ? 'left' : 'right'),
-  }));
+  const blocks: ProjectBlock[] =
+    project.content ||
+    project.images.map((img, index) => ({
+      type: "image",
+      src: img.src,
+      caption: img.caption,
+      width: index === 0 ? "full" : index % 2 === 0 ? "half" : "third",
+      align: index % 2 === 0 ? "left" : "right",
+    }));
 
   return (
     <main className="bg-black text-white min-h-screen relative">
       <SiteHeader settings={site.settings} />
-      <div className="max-w-5xl mx-auto pt-32 pb-40 px-6">
+
+      <div className="pt-32 pb-40 px-6 md:px-[var(--header-inset)]">
         <div className="mb-24 mt-10">
-        <h1 className="text-4xl md:text-7xl leading-tight max-w-4xl typo-georgia italic">
+          <h1 className="text-4xl md:text-7xl leading-tight max-w-4xl typo-georgia italic">
             {project.title}
           </h1>
         </div>
 
-        <div className="space-y-32">
-          {(() => {
-            const nodes = [] as React.ReactNode[];
+        <div className="grid grid-cols-12 gap-x-6 gap-y-24 md:gap-y-32 items-start">
+          {blocks.map((block, index) => {
+            if (block.type === "image") {
+              return (
+                <figure key={index} className={getBlockClassName(block, index)}>
+                  <img
+                    src={block.src}
+                    alt={project.title}
+                    className="w-full h-auto block object-cover shadow-sm"
+                  />
 
-            for (let i = 0; i < blocks.length; i += 1) {
-              const block = blocks[i];
-              const next = blocks[i + 1];
-
-              // If both current and next are half-width, render them side-by-side.
-              // Only image blocks have a width property; check types before accessing
-              const canPairHalf = block.type === 'image' && next && next.type === 'image' && block.width === 'half' && next.width === 'half';
-
-              if (canPairHalf) {
-                // @ts-ignore
-                nodes.push(
-                  <div key={`pair-${i}`} className="flex flex-col md:flex-row md:items-start gap-6">
-                    <div className="w-full md:w-1/2">
-                      {block.type === 'image' ? (
-                        <>
-                          <img src={block.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
-                          {block.caption && (
-                            <div className="caption-tight text-sm md:text-base leading-relaxed font-georgia opacity-80 max-w-2xl" dangerouslySetInnerHTML={{ __html: block.caption }} />
-                          )}
-                        </>
-                      ) : (
-                          // @ts-ignore
-                        <div className="text-lg md:text-xl leading-relaxed font-light" dangerouslySetInnerHTML={{ __html: block.content }} />
-                      )}
-                    </div>
-
-                    <div className="w-full md:w-1/2">
-                      {next.type === 'image' ? (
-                        <>
-                          <img src={next.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
-                          {next.caption && (
-                            <div className="caption-tight text-sm md:text-base leading-relaxed font-georgia opacity-80 max-w-2xl" dangerouslySetInnerHTML={{ __html: next.caption }} />
-                          )}
-                        </>
-                      ) : (
-                          // @ts-ignore
-                        <div className="text-lg md:text-xl leading-relaxed font-light" dangerouslySetInnerHTML={{ __html: next.content }} />
-                      )}
-                    </div>
-                  </div>
-                );
-                i += 1; // skip next
-                continue;
-              }
-
-              // Single block fallback
-              if (block.type === 'image') {
-                const widthClass = {
-                  full: 'w-full',
-                  half: 'md:w-1/2',
-                  third: 'md:w-1/3'
-                }[block.width];
-
-                const alignClass = {
-                  left: 'mr-auto',
-                  center: 'mx-auto',
-                  right: 'ml-auto'
-                }[block.align];
-
-                nodes.push(
-                  <div key={i} className={`flex flex-col ${widthClass} ${alignClass}`}>
-                    <img src={block.src} alt={project.title} className="w-full h-auto block object-cover shadow-sm" />
-                    {block.caption && (
-                      <div className="caption-tight text-sm md:text-base leading-relaxed font-georgia opacity-80 max-w-2xl" dangerouslySetInnerHTML={{ __html: block.caption }} />
-                    )}
-                  </div>
-                );
-                continue;
-              }
-
-              if (block.type === 'text') {
-                nodes.push(
-                  <div key={i} className={`text-lg md:text-xl leading-relaxed font-light`}>
-                    <div dangerouslySetInnerHTML={{ __html: block.content }} />
-                  </div>
-                );
-                continue;
-              }
+                  {block.caption ? (
+                    <figcaption
+                      className="caption-tight mt-3 text-sm md:text-base leading-relaxed typo-georgia opacity-80 max-w-2xl"
+                      dangerouslySetInnerHTML={{ __html: block.caption }}
+                    />
+                  ) : null}
+                </figure>
+              );
             }
-            return nodes;
-          })()}
+            return (
+                <div
+                    key={index}
+                    className={`${getBlockClassName(
+                        block,
+                        index,
+                    )} text-lg md:text-xl leading-relaxed font-light`}
+                    dangerouslySetInnerHTML={{ __html: block.content }}
+                />
+            );
+          })}
         </div>
       </div>
     </main>
