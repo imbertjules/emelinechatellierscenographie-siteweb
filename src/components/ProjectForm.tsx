@@ -51,10 +51,63 @@ export function ProjectForm({ project }: { project?: Project }) {
       const uploadedImages: Array<{ index: number; url: string }> = [];
       if (imagesToUpload.length > 0) {
         const fd = new FormData();
-        imagesToUpload.forEach(({ file, blockIndex }, i) => {
+
+        // Compress large images on the client before uploading to Supabase.
+        async function compressImage(file: File, maxWidth = 1600, quality = 0.8): Promise<File> {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+              try {
+                const ratio = img.width && img.height ? img.width / img.height : 1;
+                const width = Math.min(maxWidth, img.width);
+                const height = Math.max(1, Math.round(width / ratio));
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) throw new Error('Canvas context unavailable');
+                ctx.drawImage(img, 0, 0, width, height);
+                const type = 'image/webp';
+                canvas.toBlob((blob) => {
+                  try {
+                    URL.revokeObjectURL(url);
+                  } catch (e) {}
+                  if (!blob) return reject(new Error('Compression failed'));
+                  const outFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.webp'), { type: blob.type });
+                  resolve(outFile);
+                }, type, quality);
+              } catch (e) {
+                try { URL.revokeObjectURL(url); } catch (er) {}
+                reject(e);
+              }
+            };
+            img.onerror = (e) => {
+              try { URL.revokeObjectURL(url); } catch (er) {}
+              reject(e);
+            };
+            img.src = url;
+          });
+        }
+
+        const compressedFiles = await Promise.all(imagesToUpload.map(async ({ file, blockIndex }) => {
+          // Only attempt to compress images larger than ~1MB to save cycles
+          if (file.size > 1024 * 512) {
+            try {
+              const f = await compressImage(file, 1600, 0.8);
+              return { file: f, blockIndex };
+            } catch (e) {
+              return { file, blockIndex };
+            }
+          }
+          return { file, blockIndex };
+        }));
+
+        compressedFiles.forEach(({ file, blockIndex }, i) => {
           fd.append(`file-${i}`, file, file.name);
           fd.append(`index-${i}`, String(blockIndex));
         });
+
         const resp = await fetch('/api/upload', { method: 'POST', body: fd });
         if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
         const json = await resp.json();
