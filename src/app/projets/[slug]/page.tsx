@@ -98,8 +98,8 @@ export default async function ProjectPage({
               if (block.type === 'image') {
                 const widthClass = {
                   full: 'w-full',
-                  half: 'w-full md:w-1/2',
-                  third: 'w-full md:w-1/3'
+                  half: 'md:w-1/2',
+                  third: 'md:w-1/3'
                 }[block.width];
 
                 const alignClass = {
