@@ -54,6 +54,19 @@ export function ProjectForm({ project }: { project?: Project }) {
         }
       });
 
+      // Ensure we never persist browser blob: URLs. If a block still has a blob: src
+      // (preview) and the user didn't upload it, fall back to the original project value
+      // if available, otherwise clear the src so we don't store an invalid blob URL.
+      for (let i = 0; i < finalBlocks.length; i += 1) {
+        const b = finalBlocks[i];
+        if (b.type === 'image' && typeof b.src === 'string' && b.src.startsWith('blob:')) {
+          const fallback = project?.content?.[i]?.type === 'image'
+            ? project?.content?.[i]?.src
+            : project?.images?.[i]?.src;
+          finalBlocks[i].src = fallback || "";
+        }
+      }
+
       const homeImages = finalBlocks
         .filter(b => b.type === 'image')
         .map(b => ({ src: b.src, caption: b.caption }));
