@@ -1,42 +1,203 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { unstable_rethrow } from "next/navigation";
 import type { Project, ProjectBlock } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
 
-export function ProjectForm({ project }: { project?: Project }) {
-  // Type guard to narrow ProjectBlock to image block without unsafe casts
-  function isImageBlock(b: ProjectBlock | undefined): b is Extract<ProjectBlock, { type: 'image' }> {
-    return !!b && b.type === 'image';
-  }
+// Leave room under Vercel's 4.5 MB function body limit for multipart framing.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
-  const [blocks, setBlocks] = useState<ProjectBlock[]>(
+type DraftImage = {
+  id: string;
+  type: "image";
+  src: string;
+  caption: string;
+  width: "full" | "half" | "third";
+  align: "left" | "center" | "right";
+  file?: File;
+};
+
+type DraftText = {
+  id: string;
+  type: "text";
+  content: string;
+  align: "left" | "center" | "right";
+};
+
+type DraftBlock = DraftImage | DraftText;
+
+function isImageBlock(block: DraftBlock | undefined): block is DraftImage {
+  return !!block && block.type === "image";
+}
+
+function newId() {
+  return crypto.randomUUID();
+}
+
+function draftsFrom(project?: Project): DraftBlock[] {
+  const source: ProjectBlock[] =
     project?.content ||
-    project?.images.map(img => ({
-      type: 'image', src: img.src, caption: img.caption, width: 'full', align: 'center'
-    })) || []
+    project?.images.map((img) => ({
+      type: "image" as const,
+      src: img.src,
+      caption: img.caption,
+      width: "full" as const,
+      align: "center" as const,
+    })) ||
+    [];
+
+  return source.map((block) => ({ ...block, id: newId() }));
+}
+
+function isStoredSrc(src: string) {
+  return src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://");
+}
+
+function cannotUseFile(name: string) {
+  return `« ${name} » ne peut pas être utilisé.`;
+}
+
+function decodeImage(file: File): Promise<{ img: HTMLImageElement; revoke: () => void }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    const revoke = () => URL.revokeObjectURL(url);
+    const fail = () => {
+      revoke();
+      reject(new Error(cannotUseFile(file.name)));
+    };
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) {
+        fail();
+        return;
+      }
+      resolve({ img, revoke });
+    };
+    img.onerror = fail;
+    img.src = url;
+  });
+}
+
+function canvasToBlob(img: HTMLImageElement, maxWidth: number, quality: number, name: string): Promise<Blob> {
+  const ratio = img.naturalWidth / img.naturalHeight;
+  const width = Math.max(1, Math.min(maxWidth, img.naturalWidth));
+  const height = Math.max(1, Math.round(width / ratio));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Promise.reject(new Error(cannotUseFile(name)));
+  ctx.drawImage(img, 0, 0, width, height);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) reject(new Error(cannotUseFile(name)));
+      else resolve(blob);
+    }, "image/webp", quality);
+  });
+}
+
+async function prepareUpload(file: File): Promise<File> {
+  const { img, revoke } = await decodeImage(file);
+  const base = (file.name.replace(/\.[^/.]+$/, "") || "image").slice(0, 80);
+  const attempts: Array<[number, number]> = [
+    [1600, 0.8],
+    [1280, 0.7],
+    [960, 0.6],
+  ];
+  try {
+    for (const [width, quality] of attempts) {
+      const blob = await canvasToBlob(img, width, quality, file.name);
+      const prepared = new File([blob], `${base}.webp`, { type: "image/webp" });
+      if (prepared.size > 0 && prepared.size <= MAX_UPLOAD_BYTES) return prepared;
+    }
+    throw new Error(`« ${file.name} » est trop volumineux pour être envoyé.`);
+  } finally {
+    revoke();
+  }
+}
+
+async function uploadPrepared(originalName: string, prepared: File): Promise<string> {
+  const body = new FormData();
+  body.append("file", prepared, prepared.name);
+  const resp = await fetch("/api/upload", { method: "POST", body });
+  let payload: { url?: string; error?: string } = {};
+  try {
+    payload = await resp.json();
+  } catch {
+    payload = {};
+  }
+  if (resp.status === 401) {
+    throw new Error("Session expirée. Reconnectez-vous.");
+  }
+  if (!resp.ok || !payload.url) {
+    const detail = payload.error || `échec de l'envoi (${resp.status}).`;
+    throw new Error(`« ${originalName} » : ${detail}`);
+  }
+  return payload.url;
+}
+
+async function discardUploads(urls: string[]) {
+  await Promise.all(
+    urls.map(async (url) => {
+      try {
+        await fetch("/api/upload", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+      } catch {
+        // The project was not saved. A leftover file is logged by the route if deletion fails.
+      }
+    }),
   );
+}
+
+export function ProjectForm({ project }: { project?: Project }) {
+  const [blocks, setBlocks] = useState<DraftBlock[]>(() => draftsFrom(project));
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [inputFont, setInputFont] = useState<'helvetica'|'georgia'>('helvetica');
+  const [inputFont] = useState<"helvetica" | "georgia">("helvetica");
+  const savingRef = useRef(false);
 
-  // Apply selected font class to all inputs/textareas/selects in the form
-  function applyInputFont(form: HTMLFormElement | null, font: 'helvetica'|'georgia') {
+  function applyInputFont(form: HTMLFormElement | null, font: "helvetica" | "georgia") {
     if (!form) return;
-    const cls = font === 'georgia' ? 'typo-georgia' : 'typo-helvetica';
-    const remove = font === 'georgia' ? 'typo-helvetica' : 'typo-georgia';
-    form.querySelectorAll('input, textarea, select').forEach((el) => {
+    const cls = font === "georgia" ? "typo-georgia" : "typo-helvetica";
+    const remove = font === "georgia" ? "typo-helvetica" : "typo-georgia";
+    form.querySelectorAll("input, textarea, select").forEach((el) => {
       el.classList.remove(remove);
       el.classList.add(cls);
     });
   }
 
+  async function acceptFile(id: string, file: File) {
+    try {
+      const decoded = await decodeImage(file);
+      decoded.revoke();
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : cannotUseFile(file.name));
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    setBlocks((prev) =>
+      prev.map((block) => {
+        if (block.id !== id || block.type !== "image") return block;
+        if (block.src.startsWith("blob:")) URL.revokeObjectURL(block.src);
+        return { ...block, file, src: preview };
+      }),
+    );
+    setUploadError("");
+  }
+
   async function submitProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setUploading(true);
+    setUploadError("");
+
     const form = event.currentTarget;
-    // Build a minimal FormData to send to the server action — avoid including file inputs
-    // which would keep File objects in the payload (and cause "Request Entity Too Large").
     const formData = new FormData();
     formData.append("id", (form.querySelector('input[name="id"]') as HTMLInputElement)?.value || "");
     formData.append("title", (form.querySelector('input[name="title"]') as HTMLInputElement)?.value || "");
@@ -44,146 +205,82 @@ export function ProjectForm({ project }: { project?: Project }) {
     formData.append("homeWidth", (form.querySelector('select[name="homeWidth"]') as HTMLSelectElement)?.value || "medium");
     formData.append("homeAlign", (form.querySelector('select[name="homeAlign"]') as HTMLSelectElement)?.value || "center");
     const showOnHomeEl = form.querySelector('input[name="showOnHome"]') as HTMLInputElement | null;
-    if (showOnHomeEl && showOnHomeEl.checked) formData.append("showOnHome", "on");
+    if (showOnHomeEl?.checked) formData.append("showOnHome", "on");
 
-    const imagesToUpload: Array<{ file: File; blockIndex: number }> = [];
-    blocks.forEach((block, index) => {
-      if (block.type === 'image') {
-        const fileInput = form.querySelector(`input[name="file-${index}"]`) as HTMLInputElement;
-        if (fileInput?.files?.[0]) {
-          imagesToUpload.push({ file: fileInput.files[0], blockIndex: index });
-        }
-      }
-    });
-
-    setUploading(true);
-    setUploadError("");
+    const snapshot = blocks;
+    const uploadedUrls: string[] = [];
 
     try {
-      const uploadedImages: Array<{ index: number; url: string }> = [];
-      if (imagesToUpload.length > 0) {
-        const fd = new FormData();
-
-        // Compress large images on the client before uploading to Supabase.
-        async function compressImage(file: File, maxWidth = 1600, quality = 0.8): Promise<File> {
-          return new Promise((resolve, reject) => {
-            const img = new Image();
-            const url = URL.createObjectURL(file);
-            img.onload = () => {
-              try {
-                const ratio = img.width && img.height ? img.width / img.height : 1;
-                const width = Math.min(maxWidth, img.width);
-                const height = Math.max(1, Math.round(width / ratio));
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) throw new Error('Canvas context unavailable');
-                ctx.drawImage(img, 0, 0, width, height);
-                const type = 'image/webp';
-                canvas.toBlob((blob) => {
-                  try {
-                    URL.revokeObjectURL(url);
-                  } catch (e) {}
-                  if (!blob) return reject(new Error('Compression failed'));
-                  const outFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.webp'), { type: blob.type });
-                  resolve(outFile);
-                }, type, quality);
-              } catch (e) {
-                try { URL.revokeObjectURL(url); } catch (er) {}
-                reject(e);
-              }
-            };
-            img.onerror = (e) => {
-              try { URL.revokeObjectURL(url); } catch (er) {}
-              reject(e);
-            };
-            img.src = url;
-          });
-        }
-
-        const compressedFiles = await Promise.all(imagesToUpload.map(async ({ file, blockIndex }) => {
-          // Only attempt to compress images larger than ~1MB to save cycles
-          if (file.size > 1024 * 512) {
-            try {
-              const f = await compressImage(file, 1600, 0.8);
-              return { file: f, blockIndex };
-            } catch (e) {
-              return { file, blockIndex };
-            }
-          }
-          return { file, blockIndex };
-        }));
-
-        compressedFiles.forEach(({ file, blockIndex }, i) => {
-          fd.append(`file-${i}`, file, file.name);
-          fd.append(`index-${i}`, String(blockIndex));
-        });
-
-        const resp = await fetch('/api/upload', { method: 'POST', body: fd });
-        if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
-        const json = await resp.json();
-        uploadedImages.push(...json);
+      const missing = snapshot.find((block) => isImageBlock(block) && !block.file && !isStoredSrc(block.src));
+      if (missing) {
+        throw new Error("Chaque bloc image doit avoir une photo. Choisissez un fichier ou supprimez le bloc.");
       }
 
-      const finalBlocks = [...blocks];
-      uploadedImages.forEach(({ index, url }) => {
-        const target = finalBlocks[index];
-        if (isImageBlock(target)) {
-          target.src = url;
+      const urls = new Map<string, string>();
+      for (const block of snapshot) {
+        if (!isImageBlock(block) || !block.file) continue;
+        const prepared = await prepareUpload(block.file);
+        const url = await uploadPrepared(block.file.name, prepared);
+        uploadedUrls.push(url);
+        urls.set(block.id, url);
+      }
+
+      const content: ProjectBlock[] = snapshot.map((block) => {
+        if (block.type === "text") {
+          return { type: "text", content: block.content, align: block.align };
         }
+        const src = urls.get(block.id) || block.src;
+        if (!isStoredSrc(src)) {
+          throw new Error("Chaque bloc image doit avoir une photo. Choisissez un fichier ou supprimez le bloc.");
+        }
+        return {
+          type: "image",
+          src,
+          caption: block.caption,
+          width: block.width,
+          align: block.align,
+        };
       });
+      const images = content
+        .filter((block): block is Extract<ProjectBlock, { type: "image" }> => block.type === "image")
+        .map((block) => ({ src: block.src, caption: block.caption }));
 
-      // Ensure we never persist browser blob: URLs. If a block still has a blob: src
-      // (preview) and the user didn't upload it, fall back to the original project value
-      // if available, otherwise clear the src so we don't store an invalid blob URL.
-      for (let i = 0; i < finalBlocks.length; i += 1) {
-        const b = finalBlocks[i];
-        if (isImageBlock(b) && b.src.startsWith('blob:')) {
-          // Prefer matching content block src if present and it's an image
-          const contentBlock = project?.content?.[i];
-          let fallback = project?.images?.[i]?.src ?? "";
-          if (contentBlock && contentBlock.type === 'image') {
-            // contentBlock is narrowed to image block by discriminated union
-            fallback = contentBlock.src || fallback;
-          }
-          b.src = fallback || "";
-        }
-      }
-
-      const homeImages = finalBlocks
-        .filter(isImageBlock)
-        .map(b => ({ src: b.src, caption: b.caption }));
-
-      formData.set("content", JSON.stringify(finalBlocks));
-      formData.set("images", JSON.stringify(homeImages));
-
+      formData.set("content", JSON.stringify(content));
+      formData.set("images", JSON.stringify(images));
       await saveProjectAction(formData);
     } catch (error) {
+      unstable_rethrow(error);
+      await discardUploads(uploadedUrls);
       setUploadError(error instanceof Error ? error.message : "Erreur lors de l'enregistrement.");
     } finally {
+      savingRef.current = false;
       setUploading(false);
     }
   }
 
-  const addBlock = (type: ProjectBlock['type']) => {
-    const newBlock: ProjectBlock =
-      type === 'image'
-        ? { type: 'image', src: '', caption: '', width: 'full', align: 'center' }
-        : { type: 'text', content: '', align: 'left' };
-    setBlocks([...blocks, newBlock]);
+  const addBlock = (type: DraftBlock["type"]) => {
+    const block: DraftBlock =
+      type === "image"
+        ? { id: newId(), type: "image", src: "", caption: "", width: "full", align: "center" }
+        : { id: newId(), type: "text", content: "", align: "left" };
+    setBlocks((prev) => [...prev, block]);
   };
 
-  const updateBlock = (index: number, updates: Partial<ProjectBlock>) => {
-    setBlocks(prev => prev.map((b, i) => i === index ? ({ ...b, ...updates } as ProjectBlock) : b));
+  const updateBlock = (id: string, updates: Partial<DraftImage> | Partial<DraftText>) => {
+    setBlocks((prev) => prev.map((block) => (block.id === id ? ({ ...block, ...updates } as DraftBlock) : block)));
   };
 
-  const removeBlock = (index: number) => {
-    setBlocks(prev => prev.filter((_, i) => i !== index));
+  const removeBlock = (id: string) => {
+    setBlocks((prev) => {
+      const block = prev.find((item) => item.id === id);
+      if (isImageBlock(block) && block.src.startsWith("blob:")) URL.revokeObjectURL(block.src);
+      return prev.filter((item) => item.id !== id);
+    });
   };
 
   return (
     <form onSubmit={submitProject} style={{ display: "grid", gap: 24, maxWidth: 800, margin: "0 auto" }} ref={(f) => { if (f) applyInputFont(f, inputFont); }}>
+      <fieldset disabled={uploading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: "grid", gap: 24 }}>
       <input type="hidden" name="id" value={project?.id || ""} />
 
       <label style={{ display: "grid", gap: 6 }}>
@@ -224,29 +321,28 @@ export function ProjectForm({ project }: { project?: Project }) {
 
       <div style={{ display: "grid", gap: 40 }}>
         {blocks.map((block, index) => (
-          <fieldset key={index} style={{ border: "1px solid #ccc", padding: 20, display: "grid", gap: 16, position: "relative" }}>
+          <fieldset key={block.id} style={{ border: "1px solid #ccc", padding: 20, display: "grid", gap: 16, position: "relative" }}>
             <legend style={{ padding: "0 10px", fontWeight: "bold" }}>
-              Bloc {index + 1} : {block.type === 'image' ? 'Image' : 'Texte'}
+              Bloc {index + 1} : {block.type === "image" ? "Image" : "Texte"}
             </legend>
 
-            {block.type === 'image' && (
+            {block.type === "image" && (
               <div style={{ display: "grid", gap: 12 }}>
                 <div style={{ display: "grid", gap: 8 }}>
                   <input
-                    id={`file-${index}`}
+                    id={`file-${block.id}`}
                     type="file"
-                    name={`file-${index}`}
+                    name={`file-${block.id}`}
                     accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) {
-                        updateBlock(index, { src: URL.createObjectURL(file) });
-                      }
+                      e.target.value = "";
+                      if (file) void acceptFile(block.id, file);
                     }}
                     style={{ display: "none" }}
                   />
                   <label
-                    htmlFor={`file-${index}`}
+                    htmlFor={`file-${block.id}`}
                     style={{
                       ...ghostButton,
                       width: "fit-content",
@@ -276,14 +372,14 @@ export function ProjectForm({ project }: { project?: Project }) {
 
                 <div style={{ display: "flex", gap: 12 }}>
                   <label style={{ fontSize: 12 }}>Largeur:
-                    <select value={block.width} onChange={e => updateBlock(index, { width: e.target.value as never })} style={inputStyle}>
+                    <select value={block.width} onChange={(e) => updateBlock(block.id, { width: e.target.value as DraftImage["width"] })} style={inputStyle}>
                       <option value="full">Pleine</option>
                       <option value="half">Moitié</option>
                       <option value="third">Tiers</option>
                     </select>
                   </label>
                   <label style={{ fontSize: 12 }}>Alignement:
-                    <select value={block.align} onChange={e => updateBlock(index, { align: e.target.value as never })} style={inputStyle}>
+                    <select value={block.align} onChange={(e) => updateBlock(block.id, { align: e.target.value as DraftImage["align"] })} style={inputStyle}>
                       <option value="left">Gauche</option>
                       <option value="center">Centre</option>
                       <option value="right">Droite</option>
@@ -291,55 +387,58 @@ export function ProjectForm({ project }: { project?: Project }) {
                   </label>
                 </div>
                 <Wysiwyg
-                  name={`caption-${index}`}
+                  name={`caption-${block.id}`}
                   initialHtml={block.caption}
-                  onChange={(html: string) => updateBlock(index, { caption: html })}
+                  disabled={uploading}
+                  onChange={(html: string) => updateBlock(block.id, { caption: html })}
                 />
               </div>
             )}
 
-            {block.type === 'text' && (
+            {block.type === "text" && (
               <div style={{ display: "grid", gap: 12 }}>
                 <label style={{ fontSize: 12 }}>Alignement:
-                  <select value={block.align} onChange={e => updateBlock(index, { align: e.target.value as never })} style={inputStyle}>
+                  <select value={block.align} onChange={(e) => updateBlock(block.id, { align: e.target.value as DraftText["align"] })} style={inputStyle}>
                     <option value="left">Gauche</option>
                     <option value="center">Centre</option>
                     <option value="right">Droite</option>
                   </select>
                 </label>
                 <Wysiwyg
-                  name={`text-${index}`}
+                  name={`text-${block.id}`}
                   initialHtml={block.content}
-                  onChange={(html: string) => updateBlock(index, { content: html })}
+                  disabled={uploading}
+                  onChange={(html: string) => updateBlock(block.id, { content: html })}
                 />
               </div>
             )}
 
-            <button type="button" onClick={() => removeBlock(index)} style={{ ...ghostButton, color: 'red', width: 'fit-content' }}>Supprimer le bloc</button>
+            <button type="button" onClick={() => removeBlock(block.id)} style={{ ...ghostButton, color: "red", width: "fit-content" }}>Supprimer le bloc</button>
           </fieldset>
         ))}
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button type="button" onClick={() => addBlock('image')} style={ghostButton}>+ Ajouter Image</button>
-        <button type="button" onClick={() => addBlock('text')} style={ghostButton}>+ Ajouter Texte</button>
+        <button type="button" onClick={() => addBlock("image")} style={ghostButton}>+ Ajouter Image</button>
+        <button type="button" onClick={() => addBlock("text")} style={ghostButton}>+ Ajouter Texte</button>
       </div>
 
-      <button type="submit" style={solidButton}>
+      <button type="submit" disabled={uploading} style={solidButton}>
         {uploading ? "Envoi en cours..." : "Enregistrer le projet"}
       </button>
 
-      {uploadError && <p style={{ color: 'red' }}>{uploadError}</p>}
-
       {project && (
-        <button type="button" style={{ ...ghostButton, color: 'red' }} onClick={async () => {
-          if(confirm("Supprimer ?")) {
+        <button type="button" style={{ ...ghostButton, color: "red" }} onClick={async () => {
+          if (confirm("Supprimer ?")) {
             const fd = new FormData();
             fd.append("id", project.id);
             await deleteProjectAction(fd);
           }
         }}>Supprimer Projet</button>
       )}
+      </fieldset>
+
+      {uploadError && <p style={{ color: "red" }}>{uploadError}</p>}
     </form>
   );
 }

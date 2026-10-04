@@ -110,6 +110,7 @@ export default async function ProjectPage({
         <div className="grid grid-cols-12 gap-x-6 gap-y-24 md:gap-y-32 items-start">
           {blocks.map((block, index) => {
             if (block.type === "image") {
+              if (!block.src) return null;
               return (
                 <figure key={index} className={getBlockClassName(block, index)}>
                   <img

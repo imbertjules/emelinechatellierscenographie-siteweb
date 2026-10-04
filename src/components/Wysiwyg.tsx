@@ -30,10 +30,12 @@ export function Wysiwyg({
   name,
   initialHtml,
   onChange,
+  disabled = false,
 }: {
   name: string;
   initialHtml: string;
   onChange?: (html: string) => void;
+  disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(onChange);
@@ -58,6 +60,11 @@ export function Wysiwyg({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(!disabled);
+  }, [editor, disabled]);
 
   useEffect(() => {
     if (!editor) return;

@@ -14,12 +14,14 @@ export default async function AdminProjectsPage() {
         <Link href="/admin/projets/nouveau">Nouveau projet</Link>
       </div>
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 12 }}>
-        {projects.map((project) => (
+        {projects.map((project) => {
+          const thumb = project.images.find((image) => image.src);
+          return (
           <li key={project.id} style={{ display: "flex", gap: 16, alignItems: "center" }}>
-            {project.images[0] ? (
+            {thumb ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={project.images[0].src}
+                src={thumb.src}
                 alt=""
                 style={{ width: 96, height: 72, objectFit: "cover" }}
               />
@@ -31,7 +33,8 @@ export default async function AdminProjectsPage() {
               </div>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </main>
   );

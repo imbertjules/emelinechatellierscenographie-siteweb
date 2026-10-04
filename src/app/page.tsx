@@ -22,7 +22,7 @@ const OFFSET_CLASSES = ["mt-0", "mt-16", "mt-8", "mt-24"];
 export default async function HomePage() {
   const site = await readSite();
   const projects = site.projects
-    .filter((project) => project.showOnHome && project.images[0])
+    .filter((project) => project.showOnHome && project.images.some((image) => image.src))
     .sort((a, b) => a.order - b.order);
 
   return (
@@ -30,6 +30,8 @@ export default async function HomePage() {
       <SiteHeader settings={site.settings} current="home" />
       <section className="grid grid-cols-12 gap-y-28 gap-x-8 max-w-[1600px] mx-auto px-8 py-32">
         {projects.map((project, index) => {
+          const image = project.images.find((item) => item.src);
+          if (!image) return null;
           const widthClass = WIDTH_CLASSES[project.homeWidth ?? "medium"] || WIDTH_CLASSES.medium;
           const startClass = START_CLASSES[project.homeAlign ?? "center"] || START_CLASSES.center;
           const offsetClass = OFFSET_CLASSES[index % OFFSET_CLASSES.length] || "mt-0";
@@ -42,14 +44,14 @@ export default async function HomePage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={project.images[0].src}
+                src={image.src}
                 alt={project.title}
                 className="w-full h-auto block object-cover shadow-lg"
               />
-              {project.images[0].caption ? (
+              {image.caption ? (
                 <div
                   className="block font-georgia font-bold text-[16px] leading-tight mt-2 max-w-md text-white opacity-90"
-                  dangerouslySetInnerHTML={{ __html: project.images[0].caption }}
+                  dangerouslySetInnerHTML={{ __html: image.caption }}
                 />
               ) : null}
             </a>
