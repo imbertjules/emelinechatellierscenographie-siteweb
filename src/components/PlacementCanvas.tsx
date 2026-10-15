@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CanvasPlacement } from "@/lib/types";
-import { clampPlacement, estimatePlacementBottom } from "@/lib/types";
+import { estimatePlacementBottom } from "@/lib/types";
 
 export type CanvasItem = {
   id: string;
@@ -14,32 +14,40 @@ export type CanvasItem = {
 
 type Mode = "drag" | "resize" | null;
 
-const SNAP = 2.5;
+const SNAP = 2;
 const SNAP_TARGETS = [0, 50, 100];
 const BOTTOM_PAD = 64;
 const GROW_MARGIN = 48;
+const MIN_W = 8;
+const MAX_W = 90;
 
-function snapValue(value: number, size: number, mode: "pos" | "edge") {
-  if (mode === "pos") {
-    for (const t of SNAP_TARGETS) {
-      if (Math.abs(value - t) <= SNAP) return t;
-      if (Math.abs(value + size - t) <= SNAP) return t - size;
-      if (Math.abs(value + size / 2 - t) <= SNAP) return t - size / 2;
-    }
-  } else {
-    for (const t of SNAP_TARGETS) {
-      if (Math.abs(value + size - t) <= SNAP) return t - value;
-    }
+function snapPos(value: number, size: number) {
+  for (const t of SNAP_TARGETS) {
+    if (Math.abs(value - t) <= SNAP) return t;
+    if (Math.abs(value + size - t) <= SNAP) return t - size;
+    if (Math.abs(value + size / 2 - t) <= SNAP) return t - size / 2;
   }
   return value;
+}
+
+function clampDrag(p: CanvasPlacement): CanvasPlacement {
+  const w = Math.min(MAX_W, Math.max(MIN_W, p.w));
+  const x = Math.min(100 - w, Math.max(0, p.x));
+  const y = Math.max(0, Math.min(2000, p.y));
+  return { x, y, w };
+}
+
+/** Resize from the bottom-right: left edge stays fixed. */
+function clampResize(originX: number, originY: number, w: number): CanvasPlacement {
+  const maxW = Math.min(MAX_W, 100 - originX);
+  const nextW = Math.min(maxW, Math.max(MIN_W, w));
+  return { x: originX, y: Math.max(0, originY), w: nextW };
 }
 
 type Props = {
   items: CanvasItem[];
   onChange?: (id: string, placement: CanvasPlacement) => void;
-  /** When false, items are display-only (public / aperçu). */
   editable?: boolean;
-  /** Minimum canvas height in px before content grows it. */
   minHeight?: number;
   dark?: boolean;
   className?: string;
@@ -62,10 +70,13 @@ export function PlacementCanvas({
   const dragRef = useRef<{
     id: string;
     mode: Mode;
+    pointerId: number;
     startX: number;
     startY: number;
     origin: CanvasPlacement;
   } | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   const measureHeight = useCallback(() => {
     const board = boardRef.current;
@@ -84,12 +95,12 @@ export function PlacementCanvas({
       }
     }
 
-    // While dragging near/past the bottom, keep slack so the page elongates under the cursor
     const drag = dragRef.current;
-    if (drag && board) {
-      const origin = items.find((i) => i.id === drag.id)?.placement || drag.origin;
-      const top = (origin.y / 100) * width;
-      maxBottom = Math.max(maxBottom, top + GROW_MARGIN + BOTTOM_PAD + 120);
+    if (drag) {
+      const current = items.find((i) => i.id === drag.id)?.placement || drag.origin;
+      const top = (current.y / 100) * width;
+      const estH = (current.w / 100) * width * 0.75;
+      maxBottom = Math.max(maxBottom, top + estH + GROW_MARGIN + BOTTOM_PAD);
     }
 
     setContentHeight(Math.ceil(maxBottom));
@@ -123,72 +134,89 @@ export function PlacementCanvas({
     return () => imgs.forEach((img) => img.removeEventListener("load", onLoad));
   }, [items, measureHeight]);
 
+  // Window-level listeners so resize/drag keep working if the pointer leaves the board
+  useEffect(() => {
+    if (!editable) return;
+
+    const onMove = (e: PointerEvent) => {
+      const drag = dragRef.current;
+      const change = onChangeRef.current;
+      const board = boardRef.current;
+      if (!drag || !change || !board) return;
+      if (e.pointerId !== drag.pointerId) return;
+
+      const width = board.clientWidth || boardWidth || 1200;
+      const dx = ((e.clientX - drag.startX) / width) * 100;
+      const dy = ((e.clientY - drag.startY) / width) * 100;
+
+      if (drag.mode === "drag") {
+        let x = drag.origin.x + dx;
+        let y = drag.origin.y + dy;
+        x = snapPos(x, drag.origin.w);
+        if (Math.abs(y) <= SNAP) y = 0;
+        const next = clampDrag({ x, y, w: drag.origin.w });
+        change(drag.id, next);
+        const projectedBottom = estimatePlacementBottom(next, width) + BOTTOM_PAD + GROW_MARGIN;
+        setContentHeight((h) => Math.max(h, Math.ceil(projectedBottom)));
+      } else if (drag.mode === "resize") {
+        // SE handle: follow the larger of horizontal / vertical mouse travel
+        // so diagonal nwse-resize feels natural (height follows aspect ratio).
+        const delta = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
+        const next = clampResize(drag.origin.x, drag.origin.y, drag.origin.w + delta);
+        change(drag.id, next);
+      }
+    };
+
+    const onUp = (e: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      dragRef.current = null;
+      setMode(null);
+      requestAnimationFrame(measureHeight);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [editable, boardWidth, measureHeight]);
+
   const setItemRef = (id: string, el: HTMLElement | null) => {
     if (el) itemRefs.current.set(id, el);
     else itemRefs.current.delete(id);
   };
 
-  const onPointerDown = (e: React.PointerEvent, id: string, nextMode: Mode) => {
+  const beginInteraction = (e: React.PointerEvent, id: string, nextMode: Mode) => {
     if (!editable || !onChange || !nextMode) return;
     e.preventDefault();
     e.stopPropagation();
     const item = items.find((i) => i.id === id);
     if (!item) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // Some browsers throw if capture isn't supported mid-gesture.
+    }
     setActiveId(id);
     setMode(nextMode);
     dragRef.current = {
       id,
       mode: nextMode,
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       origin: { ...item.placement },
     };
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    const drag = dragRef.current;
-    if (!drag || !onChange || !boardRef.current) return;
-    const width = boardRef.current.clientWidth || boardWidth;
-    // Both axes use width so vertical units stay stable as height grows
-    const dx = ((e.clientX - drag.startX) / width) * 100;
-    const dy = ((e.clientY - drag.startY) / width) * 100;
-
-    if (drag.mode === "drag") {
-      let x = drag.origin.x + dx;
-      let y = drag.origin.y + dy;
-      x = snapValue(x, drag.origin.w, "pos");
-      // light snap only near top (y≈0); do not snap to a fixed bottom
-      if (Math.abs(y) <= SNAP) y = 0;
-      const next = clampPlacement({ x, y, w: drag.origin.w });
-      onChange(drag.id, next);
-
-      const projectedBottom = estimatePlacementBottom(next, width) + BOTTOM_PAD + GROW_MARGIN;
-      if (projectedBottom > contentHeight) {
-        setContentHeight(Math.ceil(projectedBottom));
-      }
-    } else if (drag.mode === "resize") {
-      let w = drag.origin.w + dx;
-      w = snapValue(drag.origin.x, w, "edge");
-      const next = clampPlacement({ x: drag.origin.x, y: drag.origin.y, w });
-      onChange(drag.id, next);
-      requestAnimationFrame(measureHeight);
-    }
-  };
-
-  const endDrag = () => {
-    dragRef.current = null;
-    setMode(null);
-    requestAnimationFrame(measureHeight);
-  };
-
   return (
     <div
       ref={boardRef}
       className={className}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
       style={{
         position: "relative",
         width: "100%",
@@ -218,6 +246,9 @@ export function PlacementCanvas({
       {items.map((item) => {
         const selected = editable && activeId === item.id;
         const topPx = (item.placement.y / 100) * boardWidth;
+        const resizing = mode === "resize" && activeId === item.id;
+        const dragging = mode === "drag" && activeId === item.id;
+
         const body = (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -247,6 +278,7 @@ export function PlacementCanvas({
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
+                  pointerEvents: "none",
                 }}
               >
                 {item.label}
@@ -256,18 +288,20 @@ export function PlacementCanvas({
               <button
                 type="button"
                 aria-label="Redimensionner"
-                onPointerDown={(e) => onPointerDown(e, item.id, "resize")}
+                onPointerDown={(e) => beginInteraction(e, item.id, "resize")}
                 style={{
                   position: "absolute",
-                  right: -6,
-                  bottom: -6,
-                  width: 16,
-                  height: 16,
+                  right: -8,
+                  bottom: -8,
+                  width: 20,
+                  height: 20,
                   borderRadius: 2,
-                  border: "1px solid #fff",
-                  background: "#111",
+                  border: "2px solid #fff",
+                  background: resizing ? "#fff" : "#111",
                   cursor: "nwse-resize",
                   padding: 0,
+                  zIndex: 6,
+                  touchAction: "none",
                 }}
               />
             ) : null}
@@ -280,14 +314,18 @@ export function PlacementCanvas({
           top: topPx,
           width: `${item.placement.w}%`,
           cursor: editable
-            ? mode === "drag" && activeId === item.id
+            ? dragging
               ? "grabbing"
-              : "grab"
+              : resizing
+                ? "nwse-resize"
+                : "grab"
             : item.href
               ? "pointer"
               : "default",
           outline: selected ? "2px solid #fff" : undefined,
           zIndex: selected ? 5 : 1,
+          // Avoid image "jump" while the handle is held
+          willChange: dragging || resizing ? "left, top, width" : undefined,
         };
 
         if (item.href && !editable) {
@@ -308,7 +346,11 @@ export function PlacementCanvas({
             key={item.id}
             style={style}
             ref={(el) => setItemRef(item.id, el)}
-            onPointerDown={(e) => onPointerDown(e, item.id, "drag")}
+            onPointerDown={(e) => {
+              // Ignore if the resize handle started the gesture
+              if ((e.target as HTMLElement).closest('button[aria-label="Redimensionner"]')) return;
+              beginInteraction(e, item.id, "drag");
+            }}
             onClick={() => editable && setActiveId(item.id)}
           >
             {body}
