@@ -167,6 +167,28 @@ select {
   color: inherit;
 }
 
+/* Fixed above any placement-canvas stacking (selected photos, will-change layers, etc.) */
+.admin-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #ddd;
+  background: #fff;
+  isolation: isolate;
+}
+
+.admin-body {
+  padding: 24px;
+  /* Match .admin-topbar height so content starts below the fixed bar */
+  padding-top: calc(18px + 18px + 1.4em + 1px + 24px);
+}
+
 .tiptap {
   min-height: 280px;
   padding: 16px;

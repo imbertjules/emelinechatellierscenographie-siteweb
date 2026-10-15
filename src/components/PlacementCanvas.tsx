@@ -326,9 +326,8 @@ export function PlacementCanvas({
               ? "pointer"
               : "default",
           outline: selected ? "2px solid #fff" : undefined,
-          zIndex: selected ? 5 : 1,
-          // Avoid image "jump" while the handle is held
-          willChange: dragging || resizing ? "left, top, width" : undefined,
+          // Keep low and local — admin-topbar is z-index 10000; never promote GPU layers with will-change
+          zIndex: selected || dragging || resizing ? 2 : 1,
         };
 
         if (item.href && !editable) {

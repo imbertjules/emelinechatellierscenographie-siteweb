@@ -568,7 +568,7 @@ export function ProjectForm({
               les positions vous conviennent.
             </p>
           </div>
-          <div style={{ marginLeft: -24, marginRight: -24 }}>
+          <div style={{ marginLeft: -24, marginRight: -24, position: "relative", zIndex: 0 }}>
             <ProjectPublicView
               title={titleDraft}
               settings={settings}
