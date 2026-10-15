@@ -2,8 +2,8 @@
 
 :root {
   --header-inset: 25px;
-  /* Fixed/embedded header: top:10px + logo line (~1.1em). Home board y=0 = flush under nav. */
-  --home-nav-clearance: calc(10px + 1.1em);
+  /* Fixed/embedded header: top:10px + nav/logo row (~body line-height 30px). y=0 = flush under nav. */
+  --home-nav-clearance: calc(10px + 30px);
 }
 
 * {
