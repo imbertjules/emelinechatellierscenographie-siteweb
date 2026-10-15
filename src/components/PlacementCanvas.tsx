@@ -224,8 +224,8 @@ export function PlacementCanvas({
         minHeight,
         background: editable && !dark ? "#f4f4f4" : "transparent",
         border: editable ? "1px dashed rgba(255,255,255,0.2)" : "none",
-        overflow: "visible",
-        // Keep selected/dragged item z-index inside this board (never above admin nav)
+        // Clip items to the board; admin scroll region also clips under the topbar
+        overflow: editable ? "hidden" : "visible",
         isolation: "isolate",
         zIndex: 0,
         touchAction: editable ? "none" : undefined,
@@ -303,7 +303,7 @@ export function PlacementCanvas({
                   background: resizing ? "#fff" : "#111",
                   cursor: "nwse-resize",
                   padding: 0,
-                  zIndex: 6,
+                  zIndex: 3,
                   touchAction: "none",
                 }}
               />
@@ -325,8 +325,13 @@ export function PlacementCanvas({
             : item.href
               ? "pointer"
               : "default",
-          outline: selected ? "2px solid #fff" : undefined,
-          // Keep low and local — admin-topbar is z-index 10000; never promote GPU layers with will-change
+          // box-shadow (not outline) — stays in the element's paint layer / clip
+          boxShadow: selected
+            ? dark
+              ? "0 0 0 2px #fff, 0 8px 24px rgba(0,0,0,0.45)"
+              : "0 0 0 2px #111, 0 4px 16px rgba(0,0,0,0.12)"
+            : undefined,
+          // Keep ≤ 10; admin-topbar is 10000 and sits outside the scroll clip
           zIndex: selected || dragging || resizing ? 2 : 1,
         };
 
