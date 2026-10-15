@@ -95,7 +95,7 @@ export function HomeCanvasForm({
       <div style={{ marginLeft: -24, marginRight: -24, position: "relative", zIndex: 0 }}>
         <main className="relative min-h-screen bg-black text-white" style={{ outline: "1px solid #333" }}>
           <SiteHeader settings={settings} current="home" embedded />
-          <section className="max-w-[1600px] mx-auto px-4 md:px-8 py-28 md:py-32">
+          <section className="w-full py-28 md:py-32">
             <PlacementCanvas
               items={items}
               onChange={onChange}

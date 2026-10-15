@@ -71,7 +71,8 @@ export function ProjectPublicView({
     >
       <SiteHeader settings={settings} embedded={!!previewChrome || editable} />
 
-      <div className="pt-32 pb-40 px-6 md:px-[var(--header-inset)]">
+      {/* Title + body text keep the header inset; canvas is full-bleed below. */}
+      <div className="pt-32 px-6 md:px-[var(--header-inset)]">
         <div className="mb-16 mt-10">
           <h1 className="text-4xl md:text-7xl leading-tight max-w-4xl typo-georgia italic">
             {title || "Sans titre"}
@@ -92,8 +93,10 @@ export function ProjectPublicView({
             dangerouslySetInnerHTML={{ __html: block.content }}
           />
         ))}
+      </div>
 
-        {imageBlocks.length > 0 ? (
+      {imageBlocks.length > 0 ? (
+        <div className="w-full pb-40">
           <PlacementCanvas
             items={canvasItems}
             editable={editable}
@@ -101,8 +104,8 @@ export function ProjectPublicView({
             minHeight={720}
             dark
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </main>
   );
 }

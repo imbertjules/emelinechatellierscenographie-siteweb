@@ -33,7 +33,8 @@ export default async function HomePage() {
   return (
     <main>
       <SiteHeader settings={site.settings} current="home" />
-      <section className="max-w-[1600px] mx-auto px-4 md:px-8 py-28 md:py-32">
+      {/* No horizontal padding: board is full-bleed so x=0 / x=100-w touch page edges. */}
+      <section className="w-full py-28 md:py-32">
         {items.length > 0 ? (
           <PlacementCanvas
             items={items}

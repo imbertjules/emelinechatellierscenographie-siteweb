@@ -75,7 +75,8 @@ export function defaultCanvasPlacement(index = 0): CanvasPlacement {
 }
 
 export function clampPlacement(p: CanvasPlacement): CanvasPlacement {
-  const w = Math.min(90, Math.max(8, p.w));
+  // w up to 100% so a photo can span edge-to-edge; x=0 / x=100-w = flush sides
+  const w = Math.min(100, Math.max(8, p.w));
   const x = Math.min(100 - w, Math.max(0, p.x));
   // y is width-relative; allow large values so the canvas can elongate
   const y = Math.max(0, Math.min(2000, p.y));
