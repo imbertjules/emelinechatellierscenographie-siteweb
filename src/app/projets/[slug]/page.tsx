@@ -48,27 +48,26 @@ export default async function ProjectPage({
 
   const legacyPack = legacyProjectImagePlacements(sourceBlocks);
 
-  let imageIndex = 0;
-  const fromContent: PublicViewBlock[] = sourceBlocks.map((block) => {
+  const fromContent: PublicViewBlock[] = sourceBlocks.reduce<PublicViewBlock[]>((acc, block) => {
     if (block.type === "image") {
-      const placement = resolveImagePlacement(block, imageIndex, legacyPack);
-      const id = `img-${imageIndex}`;
-      imageIndex += 1;
-      return {
-        id,
-        type: "image" as const,
+      const imageIndex = acc.filter((b) => b.type === "image").length;
+      acc.push({
+        id: `img-${imageIndex}`,
+        type: "image",
         src: block.src,
         caption: block.caption,
-        canvas: placement,
-      };
+        canvas: resolveImagePlacement(block, imageIndex, legacyPack),
+      });
+      return acc;
     }
-    return {
-      id: `text-${imageIndex}`,
-      type: "text" as const,
+    acc.push({
+      id: `text-${acc.length}`,
+      type: "text",
       content: block.content,
       align: block.align,
-    };
-  });
+    });
+    return acc;
+  }, []);
 
   const blocks: PublicViewBlock[] =
     fromContent.length > 0
