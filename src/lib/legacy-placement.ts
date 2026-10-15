@@ -16,7 +16,11 @@ import { clampPlacement, defaultCanvasPlacement } from "@/lib/types";
  * homeCanvas so the preview matches production; project images use canvas only
  * if already saved, else legacy conversion.
  */
-export const PUBLIC_PREFER_LEGACY_GRID_APPROX = true;
+/**
+ * After manual canvas placements were saved to Supabase, prefer stored
+ * homeCanvas / canvas. Set true only to fall back to legacy grid approx.
+ */
+export const PUBLIC_PREFER_LEGACY_GRID_APPROX = false;
 
 /** 12-col grid math (matches Tailwind grid-cols-12 + gap-x-8 on ~1376px content). */
 const COLS = 12;
