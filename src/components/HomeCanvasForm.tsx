@@ -96,7 +96,14 @@ export function HomeCanvasForm({
         <main className="relative min-h-screen bg-black text-white" style={{ outline: "1px solid #333" }}>
           <SiteHeader settings={settings} current="home" embedded />
           <section className="max-w-[1600px] mx-auto px-4 md:px-8 py-28 md:py-32">
-            <PlacementCanvas items={items} onChange={onChange} editable minHeight={900} dark />
+            <PlacementCanvas
+              items={items}
+              onChange={onChange}
+              editable
+              minHeight={900}
+              dark
+              captionClassName="home-caption"
+            />
           </section>
         </main>
       </div>
