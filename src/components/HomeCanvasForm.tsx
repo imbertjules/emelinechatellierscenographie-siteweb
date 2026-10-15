@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import type { CanvasPlacement, Project, SiteSettings } from "@/lib/types";
 import { clampPlacement, defaultCanvasPlacement, getHomeImage } from "@/lib/types";
 import { PlacementCanvas, type CanvasItem } from "@/components/PlacementCanvas";
-import { HomeLayoutPreview } from "@/components/HomeLayoutPreview";
+import { SiteHeader } from "@/components/SiteHeader";
 import { saveHomeCanvasAction } from "@/lib/actions";
 
 type Draft = Record<string, CanvasPlacement>;
@@ -34,7 +34,6 @@ export function HomeCanvasForm({
 
   const [placements, setPlacements] = useState<Draft>(() => draftsFrom(homeProjects));
   const [message, setMessage] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const items: CanvasItem[] = homeProjects.map((project) => {
@@ -44,7 +43,6 @@ export function HomeCanvasForm({
       src: image.src,
       label: project.title,
       placement: placements[project.id] || defaultCanvasPlacement(),
-      href: `/projets/${project.slug}`,
     };
   });
 
@@ -86,24 +84,20 @@ export function HomeCanvasForm({
   return (
     <div style={{ display: "grid", gap: 16, color: "#111" }}>
       <p style={{ margin: 0, maxWidth: 640 }}>
-        Glissez et redimensionnez une vignette par projet. Tirez vers le bas pour allonger la page.
-        Aimantage léger sur les bords et le centre.
+        Placez les vignettes directement sur l’accueil tel que le public le voit. Tirez vers le bas
+        pour allonger la page.
       </p>
-      <PlacementCanvas items={items} onChange={onChange} editable minHeight={900} dark />
+
+      <div style={{ marginLeft: -24, marginRight: -24 }}>
+        <main className="relative min-h-screen bg-black text-white" style={{ outline: "1px solid #333" }}>
+          <SiteHeader settings={settings} current="home" embedded />
+          <section className="max-w-[1600px] mx-auto px-4 md:px-8 py-28 md:py-32">
+            <PlacementCanvas items={items} onChange={onChange} editable minHeight={900} dark />
+          </section>
+        </main>
+      </div>
+
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={() => setShowPreview(true)}
-          style={{
-            border: "1px solid #111",
-            background: "transparent",
-            padding: "12px 20px",
-            cursor: "pointer",
-            fontSize: 16,
-          }}
-        >
-          Aperçu
-        </button>
         <button
           type="button"
           onClick={save}
@@ -122,14 +116,6 @@ export function HomeCanvasForm({
         </button>
         {message ? <span>{message}</span> : null}
       </div>
-
-      {showPreview ? (
-        <HomeLayoutPreview
-          settings={settings}
-          items={items}
-          onClose={() => setShowPreview(false)}
-        />
-      ) : null}
     </div>
   );
 }

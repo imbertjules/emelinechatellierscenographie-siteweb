@@ -58,37 +58,55 @@ type Props = {
   title: string;
   blocks: PublicViewBlock[];
   settings: SiteSettings;
-  /** Hide interactive header links chrome differences for aperçu (still looks the same). */
+  /** Embed header (for overlays / in-admin live editor). */
   previewChrome?: boolean;
+  /** Drag/resize photos in place on the real layout. */
+  editable?: boolean;
+  onCanvasChange?: (id: string, placement: CanvasPlacement) => void;
 };
 
 /**
  * Same layout as the public project page: header, fixed title + texts, photos on canvas.
+ * When editable, photos can be dragged/resized directly on that layout.
  */
-export function ProjectPublicView({ title, blocks, settings, previewChrome }: Props) {
+export function ProjectPublicView({
+  title,
+  blocks,
+  settings,
+  previewChrome,
+  editable = false,
+  onCanvasChange,
+}: Props) {
   const textBlocks = blocks.filter((b): b is Extract<PublicViewBlock, { type: "text" }> => b.type === "text");
   const imageBlocks = blocks.filter(
     (b): b is Extract<PublicViewBlock, { type: "image" }> => b.type === "image" && !!b.src,
   );
 
-  const useCanvas = projectUsesCanvas({
-    content: imageBlocks.map((b) => ({
-      type: "image" as const,
-      src: b.src,
-      caption: b.caption,
-      canvas: b.canvas,
-    })) as ProjectBlock[],
-  });
+  const useCanvas =
+    editable && imageBlocks.length > 0
+      ? true
+      : projectUsesCanvas({
+          content: imageBlocks.map((b) => ({
+            type: "image" as const,
+            src: b.src,
+            caption: b.caption,
+            canvas: b.canvas,
+          })) as ProjectBlock[],
+        });
 
   const canvasItems: CanvasItem[] = imageBlocks.map((block, index) => ({
     id: block.id || `img-${index}`,
     src: block.src,
+    label: editable ? `Photo ${index + 1}` : undefined,
     placement: block.canvas || defaultCanvasPlacement(index),
   }));
 
   return (
-    <main className="bg-black text-white min-h-screen relative">
-      <SiteHeader settings={settings} embedded={previewChrome} />
+    <main
+      className="bg-black text-white min-h-screen relative"
+      style={editable ? { outline: "1px solid #333" } : undefined}
+    >
+      <SiteHeader settings={settings} embedded={!!previewChrome || editable} />
 
       <div className="pt-32 pb-40 px-6 md:px-[var(--header-inset)]">
         <div className="mb-16 mt-10">
@@ -115,16 +133,24 @@ export function ProjectPublicView({ title, blocks, settings, previewChrome }: Pr
                 />
               ) : null,
             )}
-            <PlacementCanvas items={canvasItems} editable={false} minHeight={720} dark />
-            {imageBlocks.map((block, index) =>
-              block.caption ? (
-                <div
-                  key={`cap-${index}`}
-                  className="caption-tight mt-6 text-sm md:text-base leading-relaxed typo-georgia opacity-80 max-w-2xl"
-                  dangerouslySetInnerHTML={{ __html: block.caption }}
-                />
-              ) : null,
-            )}
+            <PlacementCanvas
+              items={canvasItems}
+              editable={editable}
+              onChange={editable ? onCanvasChange : undefined}
+              minHeight={720}
+              dark
+            />
+            {!editable
+              ? imageBlocks.map((block, index) =>
+                  block.caption ? (
+                    <div
+                      key={`cap-${index}`}
+                      className="caption-tight mt-6 text-sm md:text-base leading-relaxed typo-georgia opacity-80 max-w-2xl"
+                      dangerouslySetInnerHTML={{ __html: block.caption }}
+                    />
+                  ) : null,
+                )
+              : null}
           </>
         ) : (
           <div className="grid grid-cols-12 gap-x-6 gap-y-24 md:gap-y-32 items-start">

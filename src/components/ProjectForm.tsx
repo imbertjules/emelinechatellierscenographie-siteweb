@@ -6,8 +6,7 @@ import type { CanvasPlacement, Project, ProjectBlock, SiteSettings } from "@/lib
 import { clampPlacement, defaultCanvasPlacement } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
-import { PlacementCanvas, type CanvasItem } from "@/components/PlacementCanvas";
-import { ProjectLayoutPreview } from "@/components/ProjectLayoutPreview";
+import { ProjectPublicView } from "@/components/ProjectPublicView";
 
 // Leave room under Vercel's 4.5 MB function body limit for multipart framing.
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
@@ -187,8 +186,6 @@ export function ProjectForm({
   const [titleDraft, setTitleDraft] = useState(project?.title || "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
-  const [showCanvas, setShowCanvas] = useState(true);
   const [inputFont] = useState<"helvetica" | "georgia">("helvetica");
   const savingRef = useRef(false);
 
@@ -196,13 +193,6 @@ export function ProjectForm({
     () => blocks.filter((b): b is DraftImage => isImageBlock(b) && !!b.src),
     [blocks],
   );
-
-  const canvasItems: CanvasItem[] = canvasPhotos.map((block, index) => ({
-    id: block.id,
-    src: block.src,
-    label: block.isHomePhoto ? "Photo d’accueil" : `Photo ${index + 1}`,
-    placement: block.canvas,
-  }));
 
   function applyInputFont(form: HTMLFormElement | null, font: "helvetica" | "georgia") {
     if (!form) return;
@@ -231,7 +221,6 @@ export function ProjectForm({
       }),
     );
     setUploadError("");
-    setShowCanvas(true);
   }
 
   async function submitProject(event: React.FormEvent<HTMLFormElement>) {
@@ -329,7 +318,6 @@ export function ProjectForm({
           }
         : { id: newId(), type: "text", content: "", align: "left" };
     setBlocks((prev) => [...prev, block]);
-    if (type === "image") setShowCanvas(true);
   };
 
   const updateBlock = (id: string, updates: Partial<DraftImage> | Partial<DraftText>) => {
@@ -542,40 +530,7 @@ export function ProjectForm({
             </button>
           </div>
 
-          {canvasPhotos.length > 0 ? (
-            <section style={{ display: "grid", gap: 12 }}>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>Canevas du projet</h2>
-                <button type="button" onClick={() => setShowCanvas((v) => !v)} style={ghostButton}>
-                  {showCanvas ? "Masquer le canevas" : "Ouvrir le canevas"}
-                </button>
-              </div>
-              <p style={{ margin: 0, fontSize: 14, color: "#444" }}>
-                Glissez-déposez et redimensionnez les photos. Aimantage léger sur les bords et le
-                centre. Tirez une photo vers le bas : la page s’allonge automatiquement. Le titre et
-                les textes ne sont pas sur ce canevas.
-              </p>
-              {showCanvas ? (
-                <PlacementCanvas
-                  items={canvasItems}
-                  onChange={updateCanvasPlacement}
-                  editable
-                  minHeight={720}
-                  dark
-                />
-              ) : null}
-            </section>
-          ) : null}
-
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => setShowPreview(true)}
-              style={ghostButton}
-              disabled={!titleDraft && canvasPhotos.length === 0}
-            >
-              Aperçu
-            </button>
             <button type="submit" disabled={uploading} style={solidButton}>
               {uploading ? "Envoi en cours..." : "Enregistrer le projet"}
             </button>
@@ -601,23 +556,43 @@ export function ProjectForm({
         {uploadError && <p style={{ color: "red" }}>{uploadError}</p>}
       </form>
 
-      {showPreview ? (
-        <ProjectLayoutPreview
-          title={titleDraft}
-          settings={settings}
-          blocks={blocks.map((b) =>
-            b.type === "image"
-              ? {
-                  id: b.id,
-                  type: "image" as const,
-                  src: b.src,
-                  caption: b.caption,
-                  canvas: b.canvas,
-                }
-              : { id: b.id, type: "text" as const, content: b.content, align: b.align },
-          )}
-          onClose={() => setShowPreview(false)}
-        />
+      {canvasPhotos.length > 0 || titleDraft ? (
+        <section style={{ display: "grid", gap: 12, marginTop: 32 }}>
+          <div>
+            <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 500, color: "#111" }}>
+              Page telle que le public la voit
+            </h2>
+            <p style={{ margin: 0, fontSize: 14, color: "#444", maxWidth: 640 }}>
+              Glissez et redimensionnez les photos directement ici — header, titre et textes sont
+              déjà en place. Tirez une photo vers le bas pour allonger la page. Enregistrez quand
+              les positions vous conviennent.
+            </p>
+          </div>
+          <div style={{ marginLeft: -24, marginRight: -24 }}>
+            <ProjectPublicView
+              title={titleDraft}
+              settings={settings}
+              editable
+              onCanvasChange={updateCanvasPlacement}
+              blocks={blocks.map((b) =>
+                b.type === "image"
+                  ? {
+                      id: b.id,
+                      type: "image" as const,
+                      src: b.src,
+                      caption: b.caption,
+                      canvas: b.canvas,
+                    }
+                  : {
+                      id: b.id,
+                      type: "text" as const,
+                      content: b.content,
+                      align: b.align,
+                    },
+              )}
+            />
+          </div>
+        </section>
       ) : null}
     </>
   );
