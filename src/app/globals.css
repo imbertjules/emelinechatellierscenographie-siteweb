@@ -225,12 +225,25 @@ body:has(.admin-shell) {
   clip-path: inset(0);
 }
 
+/* Project body copy — same family as the title (Georgia), regular weight */
+.project-body-text,
+.project-body-text p,
+.project-body-text li {
+  font-family: Georgia, "Times New Roman", Times, serif !important;
+}
+
 .tiptap {
   min-height: 280px;
   padding: 16px;
   background: #fff;
   border: 1px solid #ccc;
   outline: none;
+}
+
+.tiptap.typo-georgia,
+.tiptap.typo-georgia p,
+.tiptap.typo-georgia li {
+  font-family: Georgia, "Times New Roman", Times, serif !important;
 }
 
 .tiptap p {

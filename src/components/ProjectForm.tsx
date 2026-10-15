@@ -40,6 +40,15 @@ function newId() {
   return crypto.randomUUID();
 }
 
+function isEmptyHtml(html: string) {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .length === 0;
+}
+
 function draftsFrom(project?: Project): DraftBlock[] {
   const source: ProjectBlock[] =
     project?.content ||
@@ -53,7 +62,7 @@ function draftsFrom(project?: Project): DraftBlock[] {
     [];
 
   let imageIndex = 0;
-  return source.map((block) => {
+  const drafts: DraftBlock[] = source.map((block) => {
     if (block.type === "image") {
       const canvas = clampPlacement(block.canvas || defaultCanvasPlacement(imageIndex));
       imageIndex += 1;
@@ -70,6 +79,12 @@ function draftsFrom(project?: Project): DraftBlock[] {
     }
     return { id: newId(), type: "text" as const, content: block.content, align: block.align };
   });
+
+  // Always keep one text slot (like the title) — appears on the page when filled.
+  if (!drafts.some((b) => b.type === "text")) {
+    drafts.unshift({ id: newId(), type: "text", content: "", align: "left" });
+  }
+  return drafts;
 }
 
 function isStoredSrc(src: string) {
@@ -261,15 +276,19 @@ export function ProjectForm({
         urls.set(block.id, url);
       }
 
-      const content: ProjectBlock[] = snapshot.map((block) => {
+      const content: ProjectBlock[] = [];
+      for (const block of snapshot) {
         if (block.type === "text") {
-          return { type: "text", content: block.content, align: block.align };
+          if (!isEmptyHtml(block.content)) {
+            content.push({ type: "text", content: block.content, align: block.align });
+          }
+          continue;
         }
         const src = urls.get(block.id) || block.src;
         if (!isStoredSrc(src)) {
           throw new Error("Chaque bloc image doit avoir une photo. Choisissez un fichier ou supprimez le bloc.");
         }
-        return {
+        content.push({
           type: "image",
           src,
           caption: block.caption,
@@ -277,8 +296,8 @@ export function ProjectForm({
           align: block.align,
           canvas: clampPlacement(block.canvas),
           isHomePhoto: block.isHomePhoto,
-        };
-      });
+        });
+      }
 
       const imageBlocks = content.filter(
         (block): block is Extract<ProjectBlock, { type: "image" }> => block.type === "image",
@@ -302,23 +321,25 @@ export function ProjectForm({
     }
   }
 
-  const addBlock = (type: DraftBlock["type"]) => {
+  const addImageBlock = () => {
     const imageCount = blocks.filter((b) => b.type === "image").length;
-    const block: DraftBlock =
-      type === "image"
-        ? {
-            id: newId(),
-            type: "image",
-            src: "",
-            caption: "",
-            width: "full",
-            align: "center",
-            canvas: defaultCanvasPlacement(imageCount),
-            isHomePhoto: imageCount === 0,
-          }
-        : { id: newId(), type: "text", content: "", align: "left" };
-    setBlocks((prev) => [...prev, block]);
+    setBlocks((prev) => [
+      ...prev,
+      {
+        id: newId(),
+        type: "image" as const,
+        src: "",
+        caption: "",
+        width: "full" as const,
+        align: "center" as const,
+        canvas: defaultCanvasPlacement(imageCount),
+        isHomePhoto: imageCount === 0,
+      },
+    ]);
   };
+
+  const textBlocks = blocks.filter((b): b is DraftText => b.type === "text");
+  const imageBlocks = blocks.filter(isImageBlock);
 
   const updateBlock = (id: string, updates: Partial<DraftImage> | Partial<DraftText>) => {
     setBlocks((prev) => prev.map((block) => (block.id === id ? ({ ...block, ...updates } as DraftBlock) : block)));
@@ -377,9 +398,29 @@ export function ProjectForm({
               style={inputStyle}
             />
           </label>
+
+          {/* Fixed text slot — always present like the title; shows on the public page when filled. */}
+          {textBlocks.map((block, textIndex) => (
+            <div key={block.id} style={{ display: "grid", gap: 8 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                {textBlocks.length > 1 ? `Texte ${textIndex + 1}` : "Texte"}
+                <span style={{ fontSize: 13, color: "#666", fontWeight: 400 }}>
+                  Sous le titre, fixe — apparaît sur la page dès qu’il est rempli (Georgia, comme le
+                  titre).
+                </span>
+              </label>
+              <Wysiwyg
+                name={`text-${block.id}`}
+                initialHtml={block.content}
+                disabled={uploading}
+                editorClassName="typo-georgia"
+                onChange={(html: string) => updateBlock(block.id, { content: html })}
+              />
+            </div>
+          ))}
+
           <p style={{ margin: 0, fontSize: 14, color: "#444" }}>
-            Le titre et les blocs texte restent fixes sur la page projet (titre en haut, textes dans
-            l’ordre). Seules les photos se placent sur le canevas.
+            Titre et texte restent fixes. Seules les photos se placent librement sur le canevas.
           </p>
 
           <label style={{ display: "grid", gap: 6 }}>
@@ -414,119 +455,92 @@ export function ProjectForm({
           </label>
 
           <div style={{ display: "grid", gap: 40 }}>
-            {blocks.map((block, index) => (
+            {imageBlocks.map((block, index) => (
               <fieldset
                 key={block.id}
                 style={{ border: "1px solid #ccc", padding: 20, display: "grid", gap: 16, position: "relative" }}
               >
                 <legend style={{ padding: "0 10px", fontWeight: "bold" }}>
-                  Bloc {index + 1} : {block.type === "image" ? "Image" : "Texte"}
+                  Photo {index + 1}
                 </legend>
 
-                {block.type === "image" && (
-                  <div style={{ display: "grid", gap: 12 }}>
-                    <div style={{ display: "grid", gap: 8 }}>
-                      <input
-                        id={`file-${block.id}`}
-                        type="file"
-                        name={`file-${block.id}`}
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          e.target.value = "";
-                          if (file) void acceptFile(block.id, file);
-                        }}
-                        style={{ display: "none" }}
-                      />
-                      <label
-                        htmlFor={`file-${block.id}`}
-                        style={{
-                          ...ghostButton,
-                          width: "fit-content",
-                          display: "inline-flex",
-                        }}
-                      >
-                        {block.src ? "Remplacer l'image" : "Choisir une image"}
-                      </label>
-
-                      {block.src ? (
-                        <div style={{ display: "grid", gap: 8 }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={block.src}
-                            alt={`Prévisualisation ${index + 1}`}
-                            style={{
-                              maxWidth: 420,
-                              maxHeight: 260,
-                              objectFit: "contain",
-                              border: "1px solid #ddd",
-                              background: "#fafafa",
-                            }}
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14 }}>
-                      <input
-                        type="radio"
-                        name="homePhoto"
-                        checked={block.isHomePhoto}
-                        onChange={() => setHomePhoto(block.id)}
-                        disabled={!block.src}
-                      />
-                      Photo d’accueil (vignette)
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <input
+                      id={`file-${block.id}`}
+                      type="file"
+                      name={`file-${block.id}`}
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void acceptFile(block.id, file);
+                      }}
+                      style={{ display: "none" }}
+                    />
+                    <label
+                      htmlFor={`file-${block.id}`}
+                      style={{
+                        ...ghostButton,
+                        width: "fit-content",
+                        display: "inline-flex",
+                      }}
+                    >
+                      {block.src ? "Remplacer l'image" : "Choisir une image"}
                     </label>
 
-                    <Wysiwyg
-                      name={`caption-${block.id}`}
-                      initialHtml={block.caption}
-                      disabled={uploading}
-                      onChange={(html: string) => updateBlock(block.id, { caption: html })}
-                    />
+                    {block.src ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={block.src}
+                          alt={`Prévisualisation ${index + 1}`}
+                          style={{
+                            maxWidth: 420,
+                            maxHeight: 260,
+                            objectFit: "contain",
+                            border: "1px solid #ddd",
+                            background: "#fafafa",
+                          }}
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                )}
 
-                {block.type === "text" && (
-                  <div style={{ display: "grid", gap: 12 }}>
-                    <label style={{ fontSize: 12 }}>
-                      Alignement:
-                      <select
-                        value={block.align}
-                        onChange={(e) => updateBlock(block.id, { align: e.target.value as DraftText["align"] })}
-                        style={inputStyle}
-                      >
-                        <option value="left">Gauche</option>
-                        <option value="center">Centre</option>
-                        <option value="right">Droite</option>
-                      </select>
-                    </label>
-                    <Wysiwyg
-                      name={`text-${block.id}`}
-                      initialHtml={block.content}
-                      disabled={uploading}
-                      onChange={(html: string) => updateBlock(block.id, { content: html })}
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14 }}>
+                    <input
+                      type="radio"
+                      name="homePhoto"
+                      checked={block.isHomePhoto}
+                      onChange={() => setHomePhoto(block.id)}
+                      disabled={!block.src}
                     />
-                  </div>
-                )}
+                    Photo d’accueil (vignette)
+                  </label>
+
+                  <Wysiwyg
+                    name={`caption-${block.id}`}
+                    initialHtml={block.caption}
+                    disabled={uploading}
+                    editorClassName="typo-georgia"
+                    onChange={(html: string) => updateBlock(block.id, { caption: html })}
+                  />
+                </div>
 
                 <button
                   type="button"
                   onClick={() => removeBlock(block.id)}
                   style={{ ...ghostButton, color: "red", width: "fit-content" }}
                 >
-                  Supprimer le bloc
+                  Supprimer la photo
                 </button>
               </fieldset>
             ))}
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" onClick={() => addBlock("image")} style={ghostButton}>
+            <button type="button" onClick={addImageBlock} style={ghostButton}>
               + Ajouter Image
-            </button>
-            <button type="button" onClick={() => addBlock("text")} style={ghostButton}>
-              + Ajouter Texte
             </button>
           </div>
 

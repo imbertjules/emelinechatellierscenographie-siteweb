@@ -31,11 +31,14 @@ export function Wysiwyg({
   initialHtml,
   onChange,
   disabled = false,
+  editorClassName,
 }: {
   name: string;
   initialHtml: string;
   onChange?: (html: string) => void;
   disabled?: boolean;
+  /** Applied to the TipTap surface (e.g. typo-georgia to match public body text). */
+  editorClassName?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(onChange);
@@ -54,6 +57,11 @@ export function Wysiwyg({
       FontMark,
     ],
     content: initialHtml,
+    editorProps: {
+      attributes: {
+        class: ["tiptap", editorClassName].filter(Boolean).join(" "),
+      },
+    },
     onSelectionUpdate: () => refreshToolbar((value) => value + 1),
   });
 
@@ -112,7 +120,7 @@ export function Wysiwyg({
         <EditorButton active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} label="Souligné"><u>S</u></EditorButton>
         <EditorButton active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} label="Barré"><s>B</s></EditorButton>
         <span className="editor-divider" />
-        {/* Font toggles: Georgia / Helvetica */}
+        {/* Font toggles: Georgia / Helvetica — overrides editor default when needed */}
         <EditorButton active={editor.isActive('font', { class: 'typo-georgia' })} onClick={() => editor.chain().focus().setMark('font', { class: 'typo-georgia' }).run()} label="Georgia">GEO</EditorButton>
         <EditorButton active={editor.isActive('font', { class: 'typo-helvetica' })} onClick={() => editor.chain().focus().setMark('font', { class: 'typo-helvetica' }).run()} label="Helvetica">HEL</EditorButton>
         <EditorButton onClick={() => editor.chain().focus().unsetMark('font').run()} label="Réinitialiser police">reset</EditorButton>

@@ -77,7 +77,15 @@ export function ProjectPublicView({
   editable = false,
   onCanvasChange,
 }: Props) {
-  const textBlocks = blocks.filter((b): b is Extract<PublicViewBlock, { type: "text" }> => b.type === "text");
+  const textBlocks = blocks.filter(
+    (b): b is Extract<PublicViewBlock, { type: "text" }> =>
+      b.type === "text" &&
+      !!b.content &&
+      b.content
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .trim().length > 0,
+  );
   const imageBlocks = blocks.filter(
     (b): b is Extract<PublicViewBlock, { type: "image" }> => b.type === "image" && !!b.src,
   );
@@ -121,7 +129,7 @@ export function ProjectPublicView({
               block.content ? (
                 <div
                   key={block.id || `text-${index}`}
-                  className="mb-10 max-w-3xl text-lg md:text-xl leading-relaxed font-light"
+                  className="project-body-text mb-10 max-w-3xl text-lg md:text-xl leading-relaxed typo-georgia"
                   style={{
                     textAlign:
                       block.align === "center" ? "center" : block.align === "right" ? "right" : "left",
@@ -177,7 +185,7 @@ export function ProjectPublicView({
               return (
                 <div
                   key={block.id || index}
-                  className={`${getBlockClassName(block, index)} text-lg md:text-xl leading-relaxed font-light`}
+                  className={`${getBlockClassName(block, index)} project-body-text text-lg md:text-xl leading-relaxed typo-georgia`}
                   dangerouslySetInnerHTML={{ __html: block.content }}
                 />
               );
