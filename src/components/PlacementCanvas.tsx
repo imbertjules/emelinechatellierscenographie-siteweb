@@ -88,7 +88,9 @@ export function PlacementCanvas({
     origin: CanvasPlacement;
   } | null>(null);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const measureHeight = useCallback(() => {
     const board = boardRef.current;
