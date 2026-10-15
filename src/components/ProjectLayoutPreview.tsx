@@ -54,48 +54,24 @@ export function ProjectLayoutPreview({ title, blocks, settings, onClose }: Props
         overflow: "auto",
       }}
     >
-      <div
+      <button
+        type="button"
+        onClick={onClose}
         style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 40,
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 12,
-          padding: "10px 16px",
-          pointerEvents: "none",
+          position: "fixed",
+          top: 16,
+          right: 16,
+          zIndex: 50,
+          border: "1px solid #fff",
+          background: "rgba(0,0,0,0.8)",
+          color: "#fff",
+          padding: "8px 14px",
+          cursor: "pointer",
+          fontSize: 14,
         }}
       >
-        <p
-          style={{
-            margin: 0,
-            marginRight: "auto",
-            fontSize: 12,
-            color: "#fff",
-            background: "rgba(0,0,0,0.55)",
-            padding: "6px 10px",
-            pointerEvents: "none",
-            maxWidth: "70%",
-          }}
-        >
-          Aperçu public — non enregistré tant que vous n’avez pas cliqué sur Enregistrer
-        </p>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            border: "1px solid #fff",
-            background: "rgba(0,0,0,0.75)",
-            color: "#fff",
-            padding: "8px 14px",
-            cursor: "pointer",
-            pointerEvents: "auto",
-            fontSize: 14,
-          }}
-        >
-          Fermer
-        </button>
-      </div>
+        Fermer l’aperçu
+      </button>
 
       <ProjectPublicView title={title} blocks={viewBlocks} settings={settings} previewChrome />
     </div>

@@ -5,12 +5,17 @@ import type { SiteSettings } from "@/lib/types";
 export function SiteHeader({
   settings,
   current,
+  embedded = false,
 }: {
   settings: SiteSettings;
   current?: "home" | "about";
+  /** Use inside Aperçu overlays (avoids fixed-header escaping the dialog). */
+  embedded?: boolean;
 }) {
   return (
-    <header className="site-header">
+    <header
+      className={embedded ? "site-header site-header--embedded" : "site-header"}
+    >
       <div className="site-brand">
         <Link href="/" aria-current={current === "home" ? "page" : undefined}>
           {/* The logo is supplied as an SVG so it stays sharp on every screen. */}

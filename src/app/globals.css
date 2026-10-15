@@ -80,6 +80,17 @@ select {
   pointer-events: none;
 }
 
+/* Inside Aperçu: same look, but in document flow of the overlay */
+.site-header--embedded {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  width: auto;
+  padding: 0 var(--header-inset);
+  z-index: 25;
+}
+
 .site-header a,
 .site-header span {
   pointer-events: auto;

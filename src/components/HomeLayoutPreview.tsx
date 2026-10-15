@@ -25,50 +25,27 @@ export function HomeLayoutPreview({ settings, items, onClose }: Props) {
         overflow: "auto",
       }}
     >
-      <div
+      <button
+        type="button"
+        onClick={onClose}
         style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 40,
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 12,
-          padding: "10px 16px",
-          pointerEvents: "none",
+          position: "fixed",
+          top: 16,
+          right: 16,
+          zIndex: 50,
+          border: "1px solid #fff",
+          background: "rgba(0,0,0,0.8)",
+          color: "#fff",
+          padding: "8px 14px",
+          cursor: "pointer",
+          fontSize: 14,
         }}
       >
-        <p
-          style={{
-            margin: 0,
-            marginRight: "auto",
-            fontSize: 12,
-            color: "#fff",
-            background: "rgba(0,0,0,0.55)",
-            padding: "6px 10px",
-            maxWidth: "70%",
-          }}
-        >
-          Aperçu public de l’accueil — non enregistré tant que vous n’avez pas cliqué sur Enregistrer
-        </p>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            border: "1px solid #fff",
-            background: "rgba(0,0,0,0.75)",
-            color: "#fff",
-            padding: "8px 14px",
-            cursor: "pointer",
-            pointerEvents: "auto",
-            fontSize: 14,
-          }}
-        >
-          Fermer
-        </button>
-      </div>
+        Fermer l’aperçu
+      </button>
 
-      <main>
-        <SiteHeader settings={settings} current="home" />
+      <main className="relative min-h-screen bg-black text-white">
+        <SiteHeader settings={settings} current="home" embedded />
         <section className="max-w-[1600px] mx-auto px-4 md:px-8 py-28 md:py-32">
           <PlacementCanvas items={items} editable={false} minHeight={900} dark />
         </section>

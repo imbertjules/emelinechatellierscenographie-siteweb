@@ -88,14 +88,7 @@ export function ProjectPublicView({ title, blocks, settings, previewChrome }: Pr
 
   return (
     <main className="bg-black text-white min-h-screen relative">
-      <SiteHeader settings={settings} />
-      {previewChrome ? (
-        <div
-          className="pointer-events-none"
-          aria-hidden
-          style={{ height: 0 }}
-        />
-      ) : null}
+      <SiteHeader settings={settings} embedded={previewChrome} />
 
       <div className="pt-32 pb-40 px-6 md:px-[var(--header-inset)]">
         <div className="mb-16 mt-10">
