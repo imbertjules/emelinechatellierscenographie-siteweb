@@ -21,7 +21,8 @@ const SNAP_TARGETS = [0, 50, 100];
 const BOTTOM_PAD = 64;
 const GROW_MARGIN = 48;
 const MIN_W = 8;
-const MAX_W = 90;
+/** Full width allowed so a photo can sit flush left and right. */
+const MAX_W = 100;
 
 function snapPos(value: number, size: number) {
   for (const t of SNAP_TARGETS) {
