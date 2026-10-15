@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import type { CanvasPlacement, Project, SiteSettings } from "@/lib/types";
-import { clampPlacement, defaultCanvasPlacement, getHomeImage } from "@/lib/types";
+import { defaultCanvasPlacement, getHomeImage } from "@/lib/types";
+import { legacyHomePlacements, resolveHomePlacement } from "@/lib/legacy-placement";
 import { PlacementCanvas, type CanvasItem } from "@/components/PlacementCanvas";
 import { SiteHeader } from "@/components/SiteHeader";
 import { saveHomeCanvasAction } from "@/lib/actions";
@@ -10,9 +11,11 @@ import { saveHomeCanvasAction } from "@/lib/actions";
 type Draft = Record<string, CanvasPlacement>;
 
 function draftsFrom(projects: Project[]): Draft {
+  const packed = legacyHomePlacements(projects);
   const next: Draft = {};
   projects.forEach((project, index) => {
-    next[project.id] = clampPlacement(project.homeCanvas || defaultCanvasPlacement(index));
+    // Same resolve as public home (legacy approx while PREFER flag is on).
+    next[project.id] = resolveHomePlacement(project, index, packed);
   });
   return next;
 }

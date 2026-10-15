@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { unstable_rethrow } from "next/navigation";
 import type { CanvasPlacement, Project, ProjectBlock, SiteSettings } from "@/lib/types";
 import { clampPlacement, defaultCanvasPlacement } from "@/lib/types";
+import { seedImagePlacement } from "@/lib/legacy-placement";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
 import { ProjectPublicView } from "@/components/ProjectPublicView";
@@ -60,7 +61,8 @@ function draftsFrom(project?: Project): DraftBlock[] {
   let imageIndex = 0;
   const drafts: DraftBlock[] = source.map((block) => {
     if (block.type === "image") {
-      const canvas = clampPlacement(block.canvas || defaultCanvasPlacement(imageIndex));
+      // Seed from stored canvas, else legacy width/align approx (same as public render).
+      const canvas = seedImagePlacement(block, imageIndex, source);
       imageIndex += 1;
       return {
         id: newId(),

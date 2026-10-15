@@ -1,13 +1,15 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { PlacementCanvas, type CanvasItem } from "@/components/PlacementCanvas";
 import { readSite } from "@/lib/store";
-import { defaultCanvasPlacement, getHomeImage } from "@/lib/types";
+import { getHomeImage } from "@/lib/types";
+import { legacyHomePlacements, resolveHomePlacement } from "@/lib/legacy-placement";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Homepage always uses the freeform canvas.
- * Missing homeCanvas values get a default placement (no grid fallback).
+ * Missing / auto homeCanvas → approximate production grid via homeWidth/homeAlign
+ * at render time (no DB write). See legacy-placement.ts.
  */
 export default async function HomePage() {
   const site = await readSite();
@@ -15,13 +17,15 @@ export default async function HomePage() {
     .filter((project) => project.showOnHome && getHomeImage(project)?.src)
     .sort((a, b) => a.order - b.order);
 
+  const legacyPack = legacyHomePlacements(projects);
+
   const items: CanvasItem[] = projects.map((project, index) => {
     const image = getHomeImage(project)!;
     return {
       id: project.id,
       src: image.src,
       caption: image.caption,
-      placement: project.homeCanvas || defaultCanvasPlacement(index),
+      placement: resolveHomePlacement(project, index, legacyPack),
       href: `/projets/${project.slug}`,
     };
   });
