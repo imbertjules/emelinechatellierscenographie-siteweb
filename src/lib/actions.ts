@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { checkPassword, clearAdminCookie, requireAdmin, setAdminCookie } from "./auth";
-import { Project, ProjectImage, ProjectBlock } from "./types";
+import {
+  Project,
+  ProjectImage,
+  ProjectBlock,
+  CanvasPlacement,
+  clampPlacement,
+  defaultCanvasPlacement,
+} from "./types";
 import { readSite, slugify, writeSite } from "./store";
 import { saveUpload, deleteUploadByUrl } from "./uploads";
 
@@ -122,16 +129,39 @@ export async function saveProjectAction(formData: FormData) {
     console.error("Failed to parse images JSON", e);
   }
 
-  const width = String(formData.get("homeWidth") || "") as Project["homeWidth"];
-  const align = String(formData.get("homeAlign") || "") as Project["homeAlign"];
+  // Always persist canvas placements (auto-create defaults when missing).
+  let imageIndex = 0;
+  content = content.map((block) => {
+    if (block.type !== "image") return block;
+    const canvas = clampPlacement(block.canvas || defaultCanvasPlacement(imageIndex));
+    imageIndex += 1;
+    return { ...block, canvas, width: undefined, align: undefined };
+  });
+
+  let homeCanvas: CanvasPlacement | undefined = current?.homeCanvas;
+  const homeCanvasStr = formData.get("homeCanvas");
+  if (typeof homeCanvasStr === "string" && homeCanvasStr) {
+    try {
+      homeCanvas = clampPlacement(JSON.parse(homeCanvasStr) as CanvasPlacement);
+    } catch {
+      // keep existing
+    }
+  }
+  const showOnHome = formData.get("showOnHome") === "on";
+  if (showOnHome && !homeCanvas) {
+    const homeIndex = site.projects.filter((p) => p.showOnHome).length;
+    homeCanvas = defaultCanvasPlacement(current ? Math.max(0, homeIndex - 1) : homeIndex);
+  }
+
   const project: Project = {
     id,
     title,
     slug: slugify(title),
-    showOnHome: formData.get("showOnHome") === "on",
+    showOnHome,
     homeLayout: undefined,
-    homeWidth: width === "small" || width === "medium" || width === "large" || width === "full" ? width : "medium",
-    homeAlign: align === "left" || align === "center" || align === "right" ? align : "center",
+    homeWidth: undefined,
+    homeAlign: undefined,
+    homeCanvas,
     order: Number(formData.get("order") || current?.order || site.projects.length + 1),
     images,
     content,
@@ -153,6 +183,34 @@ export async function saveProjectAction(formData: FormData) {
   }
   revalidatePublic();
   redirect("/admin/projets");
+}
+
+export async function saveHomeCanvasAction(formData: FormData) {
+  await requireAdmin();
+  const site = await readSite();
+  const raw = String(formData.get("placements") || "[]");
+  let placements: Array<{ projectId: string; canvas: CanvasPlacement }> = [];
+  try {
+    placements = JSON.parse(raw);
+  } catch (e) {
+    console.error("Failed to parse home canvas placements", e);
+    throw new Error("Données du canevas d’accueil invalides.");
+  }
+
+  const byId = new Map(placements.map((p) => [p.projectId, clampPlacement(p.canvas)]));
+  site.projects = site.projects.map((project) => {
+    const next = byId.get(project.id);
+    if (!next) return project;
+    return { ...project, homeCanvas: next };
+  });
+
+  try {
+    await writeSite(site);
+  } catch (e) {
+    console.error("Error writing site in saveHomeCanvasAction:", e);
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+  revalidatePublic();
 }
 
 export async function deleteProjectAction(formData: FormData) {

@@ -1,10 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { unstable_rethrow } from "next/navigation";
-import type { Project, ProjectBlock } from "@/lib/types";
+import type { CanvasPlacement, Project, ProjectBlock, SiteSettings } from "@/lib/types";
+import { clampPlacement, defaultCanvasPlacement } from "@/lib/types";
+import { seedImagePlacement } from "@/lib/legacy-placement";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
+import { ProjectPublicView } from "@/components/ProjectPublicView";
 
 // Leave room under Vercel's 4.5 MB function body limit for multipart framing.
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
@@ -14,8 +17,8 @@ type DraftImage = {
   type: "image";
   src: string;
   caption: string;
-  width: "full" | "half" | "third";
-  align: "left" | "center" | "right";
+  canvas: CanvasPlacement;
+  isHomePhoto: boolean;
   file?: File;
 };
 
@@ -36,6 +39,15 @@ function newId() {
   return crypto.randomUUID();
 }
 
+function isEmptyHtml(html: string) {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .length === 0;
+}
+
 function draftsFrom(project?: Project): DraftBlock[] {
   const source: ProjectBlock[] =
     project?.content ||
@@ -43,12 +55,32 @@ function draftsFrom(project?: Project): DraftBlock[] {
       type: "image" as const,
       src: img.src,
       caption: img.caption,
-      width: "full" as const,
-      align: "center" as const,
     })) ||
     [];
 
-  return source.map((block) => ({ ...block, id: newId() }));
+  let imageIndex = 0;
+  const drafts: DraftBlock[] = source.map((block) => {
+    if (block.type === "image") {
+      // Seed from stored canvas, else legacy width/align approx (same as public render).
+      const canvas = seedImagePlacement(block, imageIndex, source);
+      imageIndex += 1;
+      return {
+        id: newId(),
+        type: "image" as const,
+        src: block.src,
+        caption: block.caption,
+        canvas,
+        isHomePhoto: !!block.isHomePhoto,
+      };
+    }
+    return { id: newId(), type: "text" as const, content: block.content, align: block.align };
+  });
+
+  // Always keep one text slot (like the title) — appears on the page when filled.
+  if (!drafts.some((b) => b.type === "text")) {
+    drafts.unshift({ id: newId(), type: "text", content: "", align: "left" });
+  }
+  return drafts;
 }
 
 function isStoredSrc(src: string) {
@@ -154,12 +186,24 @@ async function discardUploads(urls: string[]) {
   );
 }
 
-export function ProjectForm({ project }: { project?: Project }) {
+export function ProjectForm({
+  project,
+  settings,
+}: {
+  project?: Project;
+  settings: SiteSettings;
+}) {
   const [blocks, setBlocks] = useState<DraftBlock[]>(() => draftsFrom(project));
+  const [titleDraft, setTitleDraft] = useState(project?.title || "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [inputFont] = useState<"helvetica" | "georgia">("helvetica");
   const savingRef = useRef(false);
+
+  const canvasPhotos = useMemo(
+    () => blocks.filter((b): b is DraftImage => isImageBlock(b) && !!b.src),
+    [blocks],
+  );
 
   function applyInputFont(form: HTMLFormElement | null, font: "helvetica" | "georgia") {
     if (!form) return;
@@ -202,8 +246,9 @@ export function ProjectForm({ project }: { project?: Project }) {
     formData.append("id", (form.querySelector('input[name="id"]') as HTMLInputElement)?.value || "");
     formData.append("title", (form.querySelector('input[name="title"]') as HTMLInputElement)?.value || "");
     formData.append("order", String((form.querySelector('input[name="order"]') as HTMLInputElement)?.value || "1"));
-    formData.append("homeWidth", (form.querySelector('select[name="homeWidth"]') as HTMLSelectElement)?.value || "medium");
-    formData.append("homeAlign", (form.querySelector('select[name="homeAlign"]') as HTMLSelectElement)?.value || "center");
+    if (project?.homeCanvas) {
+      formData.append("homeCanvas", JSON.stringify(project.homeCanvas));
+    }
     const showOnHomeEl = form.querySelector('input[name="showOnHome"]') as HTMLInputElement | null;
     if (showOnHomeEl?.checked) formData.append("showOnHome", "on");
 
@@ -225,25 +270,35 @@ export function ProjectForm({ project }: { project?: Project }) {
         urls.set(block.id, url);
       }
 
-      const content: ProjectBlock[] = snapshot.map((block) => {
+      const content: ProjectBlock[] = [];
+      for (const block of snapshot) {
         if (block.type === "text") {
-          return { type: "text", content: block.content, align: block.align };
+          if (!isEmptyHtml(block.content)) {
+            content.push({ type: "text", content: block.content, align: block.align });
+          }
+          continue;
         }
         const src = urls.get(block.id) || block.src;
         if (!isStoredSrc(src)) {
           throw new Error("Chaque bloc image doit avoir une photo. Choisissez un fichier ou supprimez le bloc.");
         }
-        return {
+        content.push({
           type: "image",
           src,
           caption: block.caption,
-          width: block.width,
-          align: block.align,
-        };
-      });
-      const images = content
-        .filter((block): block is Extract<ProjectBlock, { type: "image" }> => block.type === "image")
-        .map((block) => ({ src: block.src, caption: block.caption }));
+          canvas: clampPlacement(block.canvas || defaultCanvasPlacement(content.length)),
+          isHomePhoto: block.isHomePhoto,
+        });
+      }
+
+      const imageBlocks = content.filter(
+        (block): block is Extract<ProjectBlock, { type: "image" }> => block.type === "image",
+      );
+      const homeFirst = [
+        ...imageBlocks.filter((b) => b.isHomePhoto),
+        ...imageBlocks.filter((b) => !b.isHomePhoto),
+      ];
+      const images = homeFirst.map((block) => ({ src: block.src, caption: block.caption }));
 
       formData.set("content", JSON.stringify(content));
       formData.set("images", JSON.stringify(images));
@@ -258,188 +313,280 @@ export function ProjectForm({ project }: { project?: Project }) {
     }
   }
 
-  const addBlock = (type: DraftBlock["type"]) => {
-    const block: DraftBlock =
-      type === "image"
-        ? { id: newId(), type: "image", src: "", caption: "", width: "full", align: "center" }
-        : { id: newId(), type: "text", content: "", align: "left" };
-    setBlocks((prev) => [...prev, block]);
+  const addImageBlock = () => {
+    const imageCount = blocks.filter((b) => b.type === "image").length;
+    setBlocks((prev) => [
+      ...prev,
+      {
+        id: newId(),
+        type: "image" as const,
+        src: "",
+        caption: "",
+        canvas: defaultCanvasPlacement(imageCount),
+        isHomePhoto: imageCount === 0,
+      },
+    ]);
   };
+
+  const textBlocks = blocks.filter((b): b is DraftText => b.type === "text");
+  const imageBlocks = blocks.filter(isImageBlock);
 
   const updateBlock = (id: string, updates: Partial<DraftImage> | Partial<DraftText>) => {
     setBlocks((prev) => prev.map((block) => (block.id === id ? ({ ...block, ...updates } as DraftBlock) : block)));
+  };
+
+  const setHomePhoto = (id: string) => {
+    setBlocks((prev) =>
+      prev.map((block) =>
+        block.type === "image" ? { ...block, isHomePhoto: block.id === id } : block,
+      ),
+    );
+  };
+
+  const updateCanvasPlacement = (id: string, placement: CanvasPlacement) => {
+    setBlocks((prev) =>
+      prev.map((block) =>
+        block.type === "image" && block.id === id ? { ...block, canvas: placement } : block,
+      ),
+    );
   };
 
   const removeBlock = (id: string) => {
     setBlocks((prev) => {
       const block = prev.find((item) => item.id === id);
       if (isImageBlock(block) && block.src.startsWith("blob:")) URL.revokeObjectURL(block.src);
-      return prev.filter((item) => item.id !== id);
+      const next = prev.filter((item) => item.id !== id);
+      const images = next.filter(isImageBlock);
+      if (images.length && !images.some((img) => img.isHomePhoto)) {
+        return next.map((item) =>
+          item.type === "image" && item.id === images[0].id ? { ...item, isHomePhoto: true } : item,
+        );
+      }
+      return next;
     });
   };
 
   return (
-    <form onSubmit={submitProject} style={{ display: "grid", gap: 24, maxWidth: 800, margin: "0 auto" }} ref={(f) => { if (f) applyInputFont(f, inputFont); }}>
-      <fieldset disabled={uploading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: "grid", gap: 24 }}>
-      <input type="hidden" name="id" value={project?.id || ""} />
+    <>
+      <form
+        onSubmit={submitProject}
+        style={{ display: "grid", gap: 24, maxWidth: 960, margin: "0 auto" }}
+        ref={(f) => {
+          if (f) applyInputFont(f, inputFont);
+        }}
+      >
+        <fieldset disabled={uploading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: "grid", gap: 24 }}>
+          <input type="hidden" name="id" value={project?.id || ""} />
 
-      <label style={{ display: "grid", gap: 6 }}>
-        Titre
-        <input name="title" required defaultValue={project?.title} style={inputStyle} />
-      </label>
+          <label style={{ display: "grid", gap: 6 }}>
+            Titre
+            <input
+              name="title"
+              required
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              style={inputStyle}
+            />
+          </label>
 
-      <label style={{ display: "grid", gap: 6 }}>
-        Ordre sur l’accueil
-        <input name="order" type="number" defaultValue={project?.order ?? 1} style={inputStyle} />
-      </label>
+          {/* Fixed text slot — always present like the title; shows on the public page when filled. */}
+          {textBlocks.map((block, textIndex) => (
+            <div key={block.id} style={{ display: "grid", gap: 8 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                {textBlocks.length > 1 ? `Texte ${textIndex + 1}` : "Texte"}
+                <span style={{ fontSize: 13, color: "#666", fontWeight: 400 }}>
+                  Sous le titre, fixe — apparaît sur la page dès qu’il est rempli (Georgia, comme le
+                  titre).
+                </span>
+              </label>
+              <Wysiwyg
+                name={`text-${block.id}`}
+                initialHtml={block.content}
+                disabled={uploading}
+                editorClassName="typo-georgia"
+                onChange={(html: string) => updateBlock(block.id, { content: html })}
+              />
+            </div>
+          ))}
 
-      <div style={{ display: "grid", gap: 16 }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          Taille de l’image
-          <select name="homeWidth" defaultValue={project?.homeWidth ?? "medium"} style={inputStyle}>
-            <option value="small">Petite</option>
-            <option value="medium">Moyenne</option>
-            <option value="large">Grande</option>
-            <option value="full">Pleine largeur</option>
-          </select>
-        </label>
+          <p style={{ margin: 0, fontSize: 14, color: "#444" }}>
+            Titre et texte restent fixes. Seules les photos se placent librement sur le canevas.
+          </p>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          Alignement sur la page d’accueil
-          <select name="homeAlign" defaultValue={project?.homeAlign ?? "center"} style={inputStyle}>
-            <option value="left">Gauche</option>
-            <option value="center">Centre</option>
-            <option value="right">Droite</option>
-          </select>
-        </label>
-      </div>
+          <label style={{ display: "grid", gap: 6 }}>
+            Ordre sur l’accueil
+            <input name="order" type="number" defaultValue={project?.order ?? 1} style={inputStyle} />
+          </label>
 
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input type="checkbox" name="showOnHome" defaultChecked={project?.showOnHome ?? true} />
-        Afficher sur la page d’accueil
-      </label>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="checkbox" name="showOnHome" defaultChecked={project?.showOnHome ?? true} />
+            Afficher sur la page d’accueil
+          </label>
 
-      <div style={{ display: "grid", gap: 40 }}>
-        {blocks.map((block, index) => (
-          <fieldset key={block.id} style={{ border: "1px solid #ccc", padding: 20, display: "grid", gap: 16, position: "relative" }}>
-            <legend style={{ padding: "0 10px", fontWeight: "bold" }}>
-              Bloc {index + 1} : {block.type === "image" ? "Image" : "Texte"}
-            </legend>
+          <div style={{ display: "grid", gap: 40 }}>
+            {imageBlocks.map((block, index) => (
+              <fieldset
+                key={block.id}
+                style={{ border: "1px solid #ccc", padding: 20, display: "grid", gap: 16, position: "relative" }}
+              >
+                <legend style={{ padding: "0 10px", fontWeight: "bold" }}>
+                  Photo {index + 1}
+                </legend>
 
-            {block.type === "image" && (
-              <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "grid", gap: 8 }}>
-                  <input
-                    id={`file-${block.id}`}
-                    type="file"
-                    name={`file-${block.id}`}
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (file) void acceptFile(block.id, file);
-                    }}
-                    style={{ display: "none" }}
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <input
+                      id={`file-${block.id}`}
+                      type="file"
+                      name={`file-${block.id}`}
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void acceptFile(block.id, file);
+                      }}
+                      style={{ display: "none" }}
+                    />
+                    <label
+                      htmlFor={`file-${block.id}`}
+                      style={{
+                        ...ghostButton,
+                        width: "fit-content",
+                        display: "inline-flex",
+                      }}
+                    >
+                      {block.src ? "Remplacer l'image" : "Choisir une image"}
+                    </label>
+
+                    {block.src ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={block.src}
+                          alt={`Prévisualisation ${index + 1}`}
+                          style={{
+                            maxWidth: 420,
+                            maxHeight: 260,
+                            objectFit: "contain",
+                            border: "1px solid #ddd",
+                            background: "#fafafa",
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14 }}>
+                    <input
+                      type="radio"
+                      name="homePhoto"
+                      checked={block.isHomePhoto}
+                      onChange={() => setHomePhoto(block.id)}
+                      disabled={!block.src}
+                    />
+                    Photo d’accueil (vignette)
+                  </label>
+
+                  <Wysiwyg
+                    name={`caption-${block.id}`}
+                    initialHtml={block.caption}
+                    disabled={uploading}
+                    editorClassName="typo-georgia"
+                    onChange={(html: string) => updateBlock(block.id, { caption: html })}
                   />
-                  <label
-                    htmlFor={`file-${block.id}`}
-                    style={{
-                      ...ghostButton,
-                      width: "fit-content",
-                      display: "inline-flex",
-                    }}
-                  >
-                    {block.src ? "Remplacer l'image" : "Choisir une image"}
-                  </label>
-
-                  {block.src ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={block.src}
-                        alt={`Prévisualisation ${index + 1}`}
-                        style={{
-                          maxWidth: 420,
-                          maxHeight: 260,
-                          objectFit: "contain",
-                          border: "1px solid #ddd",
-                          background: "#fafafa",
-                        }}
-                      />
-                    </div>
-                  ) : null}
                 </div>
 
-                <div style={{ display: "flex", gap: 12 }}>
-                  <label style={{ fontSize: 12 }}>Largeur:
-                    <select value={block.width} onChange={(e) => updateBlock(block.id, { width: e.target.value as DraftImage["width"] })} style={inputStyle}>
-                      <option value="full">Pleine</option>
-                      <option value="half">Moitié</option>
-                      <option value="third">Tiers</option>
-                    </select>
-                  </label>
-                  <label style={{ fontSize: 12 }}>Alignement:
-                    <select value={block.align} onChange={(e) => updateBlock(block.id, { align: e.target.value as DraftImage["align"] })} style={inputStyle}>
-                      <option value="left">Gauche</option>
-                      <option value="center">Centre</option>
-                      <option value="right">Droite</option>
-                    </select>
-                  </label>
-                </div>
-                <Wysiwyg
-                  name={`caption-${block.id}`}
-                  initialHtml={block.caption}
-                  disabled={uploading}
-                  onChange={(html: string) => updateBlock(block.id, { caption: html })}
-                />
-              </div>
-            )}
+                <button
+                  type="button"
+                  onClick={() => removeBlock(block.id)}
+                  style={{ ...ghostButton, color: "red", width: "fit-content" }}
+                >
+                  Supprimer la photo
+                </button>
+              </fieldset>
+            ))}
+          </div>
 
-            {block.type === "text" && (
-              <div style={{ display: "grid", gap: 12 }}>
-                <label style={{ fontSize: 12 }}>Alignement:
-                  <select value={block.align} onChange={(e) => updateBlock(block.id, { align: e.target.value as DraftText["align"] })} style={inputStyle}>
-                    <option value="left">Gauche</option>
-                    <option value="center">Centre</option>
-                    <option value="right">Droite</option>
-                  </select>
-                </label>
-                <Wysiwyg
-                  name={`text-${block.id}`}
-                  initialHtml={block.content}
-                  disabled={uploading}
-                  onChange={(html: string) => updateBlock(block.id, { content: html })}
-                />
-              </div>
-            )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" onClick={addImageBlock} style={ghostButton}>
+              + Ajouter Image
+            </button>
+          </div>
 
-            <button type="button" onClick={() => removeBlock(block.id)} style={{ ...ghostButton, color: "red", width: "fit-content" }}>Supprimer le bloc</button>
-          </fieldset>
-        ))}
-      </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="submit" disabled={uploading} style={solidButton}>
+              {uploading ? "Envoi en cours..." : "Enregistrer le projet"}
+            </button>
+          </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button type="button" onClick={() => addBlock("image")} style={ghostButton}>+ Ajouter Image</button>
-        <button type="button" onClick={() => addBlock("text")} style={ghostButton}>+ Ajouter Texte</button>
-      </div>
+          {project && (
+            <button
+              type="button"
+              style={{ ...ghostButton, color: "red" }}
+              onClick={async () => {
+                if (confirm("Supprimer ?")) {
+                  const fd = new FormData();
+                  fd.append("id", project.id);
+                  await deleteProjectAction(fd);
+                }
+              }}
+            >
+              Supprimer Projet
+            </button>
+          )}
+        </fieldset>
 
-      <button type="submit" disabled={uploading} style={solidButton}>
-        {uploading ? "Envoi en cours..." : "Enregistrer le projet"}
-      </button>
+        {uploadError && <p style={{ color: "red" }}>{uploadError}</p>}
+      </form>
 
-      {project && (
-        <button type="button" style={{ ...ghostButton, color: "red" }} onClick={async () => {
-          if (confirm("Supprimer ?")) {
-            const fd = new FormData();
-            fd.append("id", project.id);
-            await deleteProjectAction(fd);
-          }
-        }}>Supprimer Projet</button>
-      )}
-      </fieldset>
-
-      {uploadError && <p style={{ color: "red" }}>{uploadError}</p>}
-    </form>
+      {canvasPhotos.length > 0 || titleDraft ? (
+        <section style={{ display: "grid", gap: 12, marginTop: 32 }}>
+          <div>
+            <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 500, color: "#111" }}>
+              Page telle que le public la voit
+            </h2>
+            <p style={{ margin: 0, fontSize: 14, color: "#444", maxWidth: 640 }}>
+              Glissez et redimensionnez les photos directement ici — header, titre et textes sont
+              déjà en place. Tirez une photo vers le bas pour allonger la page. Enregistrez quand
+              les positions vous conviennent.
+            </p>
+          </div>
+          <div
+            style={{
+              marginLeft: -24,
+              marginRight: -24,
+              position: "relative",
+              zIndex: 0,
+              /* Photos stay in this stacking context; admin-body clips under the topbar */
+              isolation: "isolate",
+            }}
+          >
+            <ProjectPublicView
+              title={titleDraft}
+              settings={settings}
+              editable
+              onCanvasChange={updateCanvasPlacement}
+              blocks={blocks.map((b) =>
+                b.type === "image"
+                  ? {
+                      id: b.id,
+                      type: "image" as const,
+                      src: b.src,
+                      caption: b.caption,
+                      canvas: b.canvas,
+                    }
+                  : {
+                      id: b.id,
+                      type: "text" as const,
+                      content: b.content,
+                      align: b.align,
+                    },
+              )}
+            />
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
 

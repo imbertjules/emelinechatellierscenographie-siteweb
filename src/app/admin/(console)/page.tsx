@@ -14,6 +14,8 @@ export default async function AdminHomePage() {
       <p style={{ margin: 0 }}>
         <Link href="/admin/projets/nouveau">Ajouter un projet</Link>
         {" · "}
+        <Link href="/admin/accueil">Canevas d’accueil</Link>
+        {" · "}
         <Link href="/admin/a-propos">Modifier l’à propos</Link>
       </p>
     </main>

@@ -11,23 +11,12 @@ export default async function AdminConsoleLayout({
 
   return (
     <div className="admin-shell">
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 24,
-          padding: "18px 24px",
-          borderBottom: "1px solid #ddd",
-          background: "#fff",
-          position: "sticky",
-          top: 0,
-          zIndex: 5,
-        }}
-      >
+      <header className="admin-topbar">
         <nav style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
           <Link href="/admin">Backoffice</Link>
           <Link href="/admin/projets">Projets</Link>
           <Link href="/admin/projets/nouveau">Nouveau projet</Link>
+          <Link href="/admin/accueil">Canevas accueil</Link>
           <Link href="/admin/a-propos">À propos</Link>
           <Link href="/admin/reglages">Réglages</Link>
           <Link href="/" target="_blank">
@@ -48,7 +37,7 @@ export default async function AdminConsoleLayout({
           </button>
         </form>
       </header>
-      <div style={{ padding: 24 }}>{children}</div>
+      <div className="admin-body">{children}</div>
     </div>
   );
 }
