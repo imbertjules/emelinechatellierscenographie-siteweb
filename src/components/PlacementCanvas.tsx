@@ -225,6 +225,9 @@ export function PlacementCanvas({
         background: editable && !dark ? "#f4f4f4" : "transparent",
         border: editable ? "1px dashed rgba(255,255,255,0.2)" : "none",
         overflow: "visible",
+        // Keep selected/dragged item z-index inside this board (never above admin nav)
+        isolation: "isolate",
+        zIndex: 0,
         touchAction: editable ? "none" : undefined,
         userSelect: editable ? "none" : undefined,
       }}

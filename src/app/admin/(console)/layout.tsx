@@ -21,7 +21,7 @@ export default async function AdminConsoleLayout({
           background: "#fff",
           position: "sticky",
           top: 0,
-          zIndex: 5,
+          zIndex: 200,
         }}
       >
         <nav style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
