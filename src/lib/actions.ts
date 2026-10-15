@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { checkPassword, clearAdminCookie, requireAdmin, setAdminCookie } from "./auth";
-import { Project, ProjectImage, ProjectBlock } from "./types";
+import { Project, ProjectImage, ProjectBlock, CanvasPlacement, clampPlacement } from "./types";
 import { readSite, slugify, writeSite } from "./store";
 import { saveUpload, deleteUploadByUrl } from "./uploads";
 
@@ -124,6 +124,17 @@ export async function saveProjectAction(formData: FormData) {
 
   const width = String(formData.get("homeWidth") || "") as Project["homeWidth"];
   const align = String(formData.get("homeAlign") || "") as Project["homeAlign"];
+
+  let homeCanvas: CanvasPlacement | undefined = current?.homeCanvas;
+  const homeCanvasStr = formData.get("homeCanvas");
+  if (typeof homeCanvasStr === "string" && homeCanvasStr) {
+    try {
+      homeCanvas = clampPlacement(JSON.parse(homeCanvasStr) as CanvasPlacement);
+    } catch {
+      // keep existing
+    }
+  }
+
   const project: Project = {
     id,
     title,
@@ -132,6 +143,7 @@ export async function saveProjectAction(formData: FormData) {
     homeLayout: undefined,
     homeWidth: width === "small" || width === "medium" || width === "large" || width === "full" ? width : "medium",
     homeAlign: align === "left" || align === "center" || align === "right" ? align : "center",
+    homeCanvas,
     order: Number(formData.get("order") || current?.order || site.projects.length + 1),
     images,
     content,
@@ -153,6 +165,34 @@ export async function saveProjectAction(formData: FormData) {
   }
   revalidatePublic();
   redirect("/admin/projets");
+}
+
+export async function saveHomeCanvasAction(formData: FormData) {
+  await requireAdmin();
+  const site = await readSite();
+  const raw = String(formData.get("placements") || "[]");
+  let placements: Array<{ projectId: string; canvas: CanvasPlacement }> = [];
+  try {
+    placements = JSON.parse(raw);
+  } catch (e) {
+    console.error("Failed to parse home canvas placements", e);
+    throw new Error("Données du canevas d’accueil invalides.");
+  }
+
+  const byId = new Map(placements.map((p) => [p.projectId, clampPlacement(p.canvas)]));
+  site.projects = site.projects.map((project) => {
+    const next = byId.get(project.id);
+    if (!next) return project;
+    return { ...project, homeCanvas: next };
+  });
+
+  try {
+    await writeSite(site);
+  } catch (e) {
+    console.error("Error writing site in saveHomeCanvasAction:", e);
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+  revalidatePublic();
 }
 
 export async function deleteProjectAction(formData: FormData) {

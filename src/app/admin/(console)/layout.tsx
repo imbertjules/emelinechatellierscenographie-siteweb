@@ -28,6 +28,7 @@ export default async function AdminConsoleLayout({
           <Link href="/admin">Backoffice</Link>
           <Link href="/admin/projets">Projets</Link>
           <Link href="/admin/projets/nouveau">Nouveau projet</Link>
+          <Link href="/admin/accueil">Canevas accueil</Link>
           <Link href="/admin/a-propos">À propos</Link>
           <Link href="/admin/reglages">Réglages</Link>
           <Link href="/" target="_blank">

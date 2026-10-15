@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
+import { PlacementCanvas, type CanvasItem } from "@/components/PlacementCanvas";
 import { readSite } from "@/lib/store";
-import type { ProjectBlock } from "@/lib/types";
+import {
+  defaultCanvasPlacement,
+  projectUsesCanvas,
+  type ProjectBlock,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -89,57 +94,94 @@ export default async function ProjectPage({
   const blocks: ProjectBlock[] =
     project.content ||
     project.images.map((img, index) => ({
-      type: "image",
+      type: "image" as const,
       src: img.src,
       caption: img.caption,
-      width: index === 0 ? "full" : index % 2 === 0 ? "half" : "third",
-      align: index % 2 === 0 ? "left" : "right",
+      width: index === 0 ? ("full" as const) : index % 2 === 0 ? ("half" as const) : ("third" as const),
+      align: index % 2 === 0 ? ("left" as const) : ("right" as const),
     }));
+
+  const textBlocks = blocks.filter((b): b is Extract<ProjectBlock, { type: "text" }> => b.type === "text");
+  const imageBlocks = blocks.filter(
+    (b): b is Extract<ProjectBlock, { type: "image" }> => b.type === "image" && !!b.src,
+  );
+  const useCanvas = projectUsesCanvas(project);
+
+  const canvasItems: CanvasItem[] = imageBlocks.map((block, index) => ({
+    id: `img-${index}`,
+    src: block.src,
+    placement: block.canvas || defaultCanvasPlacement(index),
+  }));
 
   return (
     <main className="bg-black text-white min-h-screen relative">
       <SiteHeader settings={site.settings} />
 
       <div className="pt-32 pb-40 px-6 md:px-[var(--header-inset)]">
-        <div className="mb-24 mt-10">
+        <div className="mb-16 mt-10">
           <h1 className="text-4xl md:text-7xl leading-tight max-w-4xl typo-georgia italic">
             {project.title}
           </h1>
         </div>
 
-        <div className="grid grid-cols-12 gap-x-6 gap-y-24 md:gap-y-32 items-start">
-          {blocks.map((block, index) => {
-            if (block.type === "image") {
-              if (!block.src) return null;
-              return (
-                <figure key={index} className={getBlockClassName(block, index)}>
-                  <img
-                    src={block.src}
-                    alt={project.title}
-                    className="w-full h-auto block object-cover shadow-sm"
-                  />
-
-                  {block.caption ? (
-                    <figcaption
-                      className="caption-tight mt-3 text-sm md:text-base leading-relaxed typo-georgia opacity-80 max-w-2xl"
-                      dangerouslySetInnerHTML={{ __html: block.caption }}
-                    />
-                  ) : null}
-                </figure>
-              );
-            }
-            return (
+        {useCanvas ? (
+          <>
+            {textBlocks.map((block, index) => (
+              <div
+                key={`text-${index}`}
+                className="mb-10 max-w-3xl text-lg md:text-xl leading-relaxed font-light"
+                style={{
+                  textAlign: block.align === "center" ? "center" : block.align === "right" ? "right" : "left",
+                  marginLeft: block.align === "center" ? "auto" : undefined,
+                  marginRight: block.align === "center" || block.align === "right" ? "auto" : undefined,
+                }}
+                dangerouslySetInnerHTML={{ __html: block.content }}
+              />
+            ))}
+            <PlacementCanvas items={canvasItems} editable={false} minHeight={720} dark />
+            {imageBlocks.map((block, index) =>
+              block.caption ? (
                 <div
-                    key={index}
-                    className={`${getBlockClassName(
-                        block,
-                        index,
-                    )} text-lg md:text-xl leading-relaxed font-light`}
-                    dangerouslySetInnerHTML={{ __html: block.content }}
+                  key={`cap-${index}`}
+                  className="caption-tight mt-6 text-sm md:text-base leading-relaxed typo-georgia opacity-80 max-w-2xl"
+                  dangerouslySetInnerHTML={{ __html: block.caption }}
                 />
-            );
-          })}
-        </div>
+              ) : null,
+            )}
+          </>
+        ) : (
+          <div className="grid grid-cols-12 gap-x-6 gap-y-24 md:gap-y-32 items-start">
+            {blocks.map((block, index) => {
+              if (block.type === "image") {
+                if (!block.src) return null;
+                return (
+                  <figure key={index} className={getBlockClassName(block, index)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={block.src}
+                      alt={project.title}
+                      className="w-full h-auto block object-cover shadow-sm"
+                    />
+
+                    {block.caption ? (
+                      <figcaption
+                        className="caption-tight mt-3 text-sm md:text-base leading-relaxed typo-georgia opacity-80 max-w-2xl"
+                        dangerouslySetInnerHTML={{ __html: block.caption }}
+                      />
+                    ) : null}
+                  </figure>
+                );
+              }
+              return (
+                <div
+                  key={index}
+                  className={`${getBlockClassName(block, index)} text-lg md:text-xl leading-relaxed font-light`}
+                  dangerouslySetInnerHTML={{ __html: block.content }}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </main>
   );

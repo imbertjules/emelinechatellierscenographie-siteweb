@@ -1,6 +1,13 @@
 import { SiteHeader } from "@/components/SiteHeader";
+import { PlacementCanvas, type CanvasItem } from "@/components/PlacementCanvas";
 import { readSite } from "@/lib/store";
-import type { HomeProjectAlign, HomeProjectWidth } from "@/lib/types";
+import {
+  defaultCanvasPlacement,
+  getHomeImage,
+  homeUsesCanvas,
+  type HomeProjectAlign,
+  type HomeProjectWidth,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -22,15 +29,39 @@ const OFFSET_CLASSES = ["mt-0", "mt-16", "mt-8", "mt-24"];
 export default async function HomePage() {
   const site = await readSite();
   const projects = site.projects
-    .filter((project) => project.showOnHome && project.images.some((image) => image.src))
+    .filter((project) => project.showOnHome && getHomeImage(project)?.src)
     .sort((a, b) => a.order - b.order);
+
+  const useCanvas = homeUsesCanvas(projects);
+
+  if (useCanvas) {
+    const items: CanvasItem[] = projects.map((project, index) => {
+      const image = getHomeImage(project)!;
+      return {
+        id: project.id,
+        src: image.src,
+        label: project.title,
+        placement: project.homeCanvas || defaultCanvasPlacement(index),
+        href: `/projets/${project.slug}`,
+      };
+    });
+
+    return (
+      <main>
+        <SiteHeader settings={site.settings} current="home" />
+        <section className="max-w-[1600px] mx-auto px-4 md:px-8 py-28 md:py-32">
+          <PlacementCanvas items={items} editable={false} minHeight={900} dark />
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main>
       <SiteHeader settings={site.settings} current="home" />
       <section className="grid grid-cols-12 gap-y-28 gap-x-8 max-w-[1600px] mx-auto px-8 py-32">
         {projects.map((project, index) => {
-          const image = project.images.find((item) => item.src);
+          const image = getHomeImage(project);
           if (!image) return null;
           const widthClass = WIDTH_CLASSES[project.homeWidth ?? "medium"] || WIDTH_CLASSES.medium;
           const startClass = START_CLASSES[project.homeAlign ?? "center"] || START_CLASSES.center;
