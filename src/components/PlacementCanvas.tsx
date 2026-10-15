@@ -316,6 +316,9 @@ export function PlacementCanvas({
           left: `${item.placement.x}%`,
           top: topPx,
           width: `${item.placement.w}%`,
+          // No transform/filter/will-change — avoids promoted layers that escape overflow clip
+          transform: "none",
+          outline: "none",
           cursor: editable
             ? dragging
               ? "grabbing"

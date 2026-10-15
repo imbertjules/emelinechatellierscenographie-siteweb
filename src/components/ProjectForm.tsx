@@ -568,7 +568,17 @@ export function ProjectForm({
               les positions vous conviennent.
             </p>
           </div>
-          <div style={{ marginLeft: -24, marginRight: -24, position: "relative", zIndex: 0 }}>
+          <div
+            style={{
+              marginLeft: -24,
+              marginRight: -24,
+              position: "relative",
+              zIndex: 0,
+              /* Photos stay in this stacking context; admin-body clips under the topbar */
+              isolation: "isolate",
+              overflow: "hidden",
+            }}
+          >
             <ProjectPublicView
               title={titleDraft}
               settings={settings}
