@@ -2,6 +2,8 @@
 
 :root {
   --header-inset: 25px;
+  /* Fixed/embedded header: top:10px + logo line (~1.1em). Home board y=0 = flush under nav. */
+  --home-nav-clearance: calc(10px + 1.1em);
 }
 
 * {
@@ -56,6 +58,11 @@ body {
   max-width: 28rem;
   color: #fff;
   opacity: 0.9;
+}
+
+/* Homepage canvas: no extra top padding — only clear the fixed/embedded nav. */
+.home-canvas-section {
+  padding-top: var(--home-nav-clearance);
 }
 
 .site-header {
