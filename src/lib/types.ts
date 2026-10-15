@@ -3,7 +3,11 @@ export type ProjectImage = {
   caption: string;
 };
 
-/** Percent-based placement on a freeform canvas (0–100). */
+/**
+ * Freeform placement.
+ * - x, w: percent of canvas width (0–100)
+ * - y: percent of canvas **width** (not height), so the page can grow downward without clamping
+ */
 export type CanvasPlacement = {
   x: number;
   y: number;
@@ -63,7 +67,7 @@ export function defaultCanvasPlacement(index = 0): CanvasPlacement {
   const row = Math.floor(index / 3);
   return {
     x: 8 + col * 30,
-    y: 8 + row * 28,
+    y: 8 + row * 36,
     w: 28,
   };
 }
@@ -71,8 +75,16 @@ export function defaultCanvasPlacement(index = 0): CanvasPlacement {
 export function clampPlacement(p: CanvasPlacement): CanvasPlacement {
   const w = Math.min(90, Math.max(8, p.w));
   const x = Math.min(100 - w, Math.max(0, p.x));
-  const y = Math.min(92, Math.max(0, p.y));
+  // y is width-relative; allow large values so the canvas can elongate
+  const y = Math.max(0, Math.min(2000, p.y));
   return { x, y, w };
+}
+
+/** Rough bottom edge of a placement, in px, for a given board width. */
+export function estimatePlacementBottom(p: CanvasPlacement, boardWidth: number, aspect = 0.7): number {
+  const top = (p.y / 100) * boardWidth;
+  const imgH = (p.w / 100) * boardWidth * aspect;
+  return top + imgH;
 }
 
 export function getHomeImage(project: Project): ProjectImage | undefined {

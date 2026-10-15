@@ -17,7 +17,7 @@ export default async function EditProjectPage({
   return (
     <main style={{ display: "grid", gap: 20 }}>
       <h1 style={{ margin: 0, fontSize: 28, fontWeight: 500 }}>{project.title}</h1>
-      <ProjectForm project={project} />
+      <ProjectForm project={project} settings={site.settings} />
     </main>
   );
 }

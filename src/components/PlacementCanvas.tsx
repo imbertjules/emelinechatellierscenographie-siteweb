@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CanvasPlacement } from "@/lib/types";
-import { clampPlacement } from "@/lib/types";
+import { clampPlacement, estimatePlacementBottom } from "@/lib/types";
 
 export type CanvasItem = {
   id: string;
@@ -16,6 +16,8 @@ type Mode = "drag" | "resize" | null;
 
 const SNAP = 2.5;
 const SNAP_TARGETS = [0, 50, 100];
+const BOTTOM_PAD = 64;
+const GROW_MARGIN = 48;
 
 function snapValue(value: number, size: number, mode: "pos" | "edge") {
   if (mode === "pos") {
@@ -37,7 +39,7 @@ type Props = {
   onChange?: (id: string, placement: CanvasPlacement) => void;
   /** When false, items are display-only (public / aperçu). */
   editable?: boolean;
-  /** Canvas height as a CSS value; width is 100%. */
+  /** Minimum canvas height in px before content grows it. */
   minHeight?: number;
   dark?: boolean;
   className?: string;
@@ -52,6 +54,9 @@ export function PlacementCanvas({
   className,
 }: Props) {
   const boardRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const [boardWidth, setBoardWidth] = useState(1200);
+  const [contentHeight, setContentHeight] = useState(minHeight);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>(null);
   const dragRef = useRef<{
@@ -62,15 +67,66 @@ export function PlacementCanvas({
     origin: CanvasPlacement;
   } | null>(null);
 
-  const toPercent = useCallback((clientX: number, clientY: number) => {
+  const measureHeight = useCallback(() => {
     const board = boardRef.current;
-    if (!board) return { x: 0, y: 0 };
-    const rect = board.getBoundingClientRect();
-    return {
-      x: ((clientX - rect.left) / rect.width) * 100,
-      y: ((clientY - rect.top) / rect.height) * 100,
+    const width = board?.clientWidth || boardWidth || 1200;
+    let maxBottom = minHeight;
+
+    for (const item of items) {
+      const el = itemRefs.current.get(item.id);
+      if (el) {
+        maxBottom = Math.max(maxBottom, el.offsetTop + el.offsetHeight + BOTTOM_PAD);
+      } else {
+        maxBottom = Math.max(
+          maxBottom,
+          estimatePlacementBottom(item.placement, width) + BOTTOM_PAD,
+        );
+      }
+    }
+
+    // While dragging near/past the bottom, keep slack so the page elongates under the cursor
+    const drag = dragRef.current;
+    if (drag && board) {
+      const origin = items.find((i) => i.id === drag.id)?.placement || drag.origin;
+      const top = (origin.y / 100) * width;
+      maxBottom = Math.max(maxBottom, top + GROW_MARGIN + BOTTOM_PAD + 120);
+    }
+
+    setContentHeight(Math.ceil(maxBottom));
+  }, [items, minHeight, boardWidth]);
+
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    const updateWidth = () => {
+      setBoardWidth(board.clientWidth || 1200);
     };
-  }, []);
+    updateWidth();
+
+    const ro = new ResizeObserver(() => {
+      updateWidth();
+      measureHeight();
+    });
+    ro.observe(board);
+    return () => ro.disconnect();
+  }, [measureHeight]);
+
+  useLayoutEffect(() => {
+    measureHeight();
+  }, [items, boardWidth, measureHeight]);
+
+  useEffect(() => {
+    const imgs = boardRef.current?.querySelectorAll("img") || [];
+    const onLoad = () => measureHeight();
+    imgs.forEach((img) => img.addEventListener("load", onLoad));
+    return () => imgs.forEach((img) => img.removeEventListener("load", onLoad));
+  }, [items, measureHeight]);
+
+  const setItemRef = (id: string, el: HTMLElement | null) => {
+    if (el) itemRefs.current.set(id, el);
+    else itemRefs.current.delete(id);
+  };
 
   const onPointerDown = (e: React.PointerEvent, id: string, nextMode: Mode) => {
     if (!editable || !onChange || !nextMode) return;
@@ -93,26 +149,37 @@ export function PlacementCanvas({
   const onPointerMove = (e: React.PointerEvent) => {
     const drag = dragRef.current;
     if (!drag || !onChange || !boardRef.current) return;
-    const board = boardRef.current.getBoundingClientRect();
-    const dx = ((e.clientX - drag.startX) / board.width) * 100;
-    const dy = ((e.clientY - drag.startY) / board.height) * 100;
+    const width = boardRef.current.clientWidth || boardWidth;
+    // Both axes use width so vertical units stay stable as height grows
+    const dx = ((e.clientX - drag.startX) / width) * 100;
+    const dy = ((e.clientY - drag.startY) / width) * 100;
 
     if (drag.mode === "drag") {
       let x = drag.origin.x + dx;
       let y = drag.origin.y + dy;
       x = snapValue(x, drag.origin.w, "pos");
-      y = snapValue(y, 0, "pos");
-      onChange(drag.id, clampPlacement({ x, y, w: drag.origin.w }));
+      // light snap only near top (y≈0); do not snap to a fixed bottom
+      if (Math.abs(y) <= SNAP) y = 0;
+      const next = clampPlacement({ x, y, w: drag.origin.w });
+      onChange(drag.id, next);
+
+      const projectedBottom = estimatePlacementBottom(next, width) + BOTTOM_PAD + GROW_MARGIN;
+      if (projectedBottom > contentHeight) {
+        setContentHeight(Math.ceil(projectedBottom));
+      }
     } else if (drag.mode === "resize") {
       let w = drag.origin.w + dx;
       w = snapValue(drag.origin.x, w, "edge");
-      onChange(drag.id, clampPlacement({ x: drag.origin.x, y: drag.origin.y, w }));
+      const next = clampPlacement({ x: drag.origin.x, y: drag.origin.y, w });
+      onChange(drag.id, next);
+      requestAnimationFrame(measureHeight);
     }
   };
 
   const endDrag = () => {
     dragRef.current = null;
     setMode(null);
+    requestAnimationFrame(measureHeight);
   };
 
   return (
@@ -125,10 +192,11 @@ export function PlacementCanvas({
       style={{
         position: "relative",
         width: "100%",
+        height: contentHeight,
         minHeight,
-        background: dark ? "#0a0a0a" : "#f4f4f4",
-        border: editable ? "1px dashed #666" : "none",
-        overflow: "hidden",
+        background: editable ? (dark ? "#0a0a0a" : "#f4f4f4") : "transparent",
+        border: editable ? "1px dashed #444" : "none",
+        overflow: "visible",
         touchAction: editable ? "none" : undefined,
         userSelect: editable ? "none" : undefined,
       }}
@@ -140,8 +208,8 @@ export function PlacementCanvas({
             position: "absolute",
             inset: 0,
             backgroundImage:
-              "linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)",
-            backgroundSize: "10% 10%",
+              "linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)",
+            backgroundSize: `${Math.max(40, boardWidth / 10)}px ${Math.max(40, boardWidth / 10)}px`,
             pointerEvents: "none",
           }}
         />
@@ -149,6 +217,7 @@ export function PlacementCanvas({
 
       {items.map((item) => {
         const selected = editable && activeId === item.id;
+        const topPx = (item.placement.y / 100) * boardWidth;
         const body = (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -208,16 +277,27 @@ export function PlacementCanvas({
         const style: React.CSSProperties = {
           position: "absolute",
           left: `${item.placement.x}%`,
-          top: `${item.placement.y}%`,
+          top: topPx,
           width: `${item.placement.w}%`,
-          cursor: editable ? (mode === "drag" && activeId === item.id ? "grabbing" : "grab") : item.href ? "pointer" : "default",
+          cursor: editable
+            ? mode === "drag" && activeId === item.id
+              ? "grabbing"
+              : "grab"
+            : item.href
+              ? "pointer"
+              : "default",
           outline: selected ? "2px solid #fff" : undefined,
           zIndex: selected ? 5 : 1,
         };
 
         if (item.href && !editable) {
           return (
-            <a key={item.id} href={item.href} style={style}>
+            <a
+              key={item.id}
+              href={item.href}
+              style={style}
+              ref={(el) => setItemRef(item.id, el)}
+            >
               {body}
             </a>
           );
@@ -227,6 +307,7 @@ export function PlacementCanvas({
           <div
             key={item.id}
             style={style}
+            ref={(el) => setItemRef(item.id, el)}
             onPointerDown={(e) => onPointerDown(e, item.id, "drag")}
             onClick={() => editable && setActiveId(item.id)}
           >

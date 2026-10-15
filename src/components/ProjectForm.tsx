@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { unstable_rethrow } from "next/navigation";
-import type { CanvasPlacement, Project, ProjectBlock } from "@/lib/types";
+import type { CanvasPlacement, Project, ProjectBlock, SiteSettings } from "@/lib/types";
 import { clampPlacement, defaultCanvasPlacement } from "@/lib/types";
 import { deleteProjectAction, saveProjectAction } from "@/lib/actions";
 import { Wysiwyg } from "@/components/Wysiwyg";
@@ -176,7 +176,13 @@ async function discardUploads(urls: string[]) {
   );
 }
 
-export function ProjectForm({ project }: { project?: Project }) {
+export function ProjectForm({
+  project,
+  settings,
+}: {
+  project?: Project;
+  settings: SiteSettings;
+}) {
   const [blocks, setBlocks] = useState<DraftBlock[]>(() => draftsFrom(project));
   const [titleDraft, setTitleDraft] = useState(project?.title || "");
   const [uploading, setUploading] = useState(false);
@@ -546,14 +552,15 @@ export function ProjectForm({ project }: { project?: Project }) {
               </div>
               <p style={{ margin: 0, fontSize: 14, color: "#444" }}>
                 Glissez-déposez et redimensionnez les photos. Aimantage léger sur les bords et le
-                centre. Le titre et les textes ne sont pas sur ce canevas.
+                centre. Tirez une photo vers le bas : la page s’allonge automatiquement. Le titre et
+                les textes ne sont pas sur ce canevas.
               </p>
               {showCanvas ? (
                 <PlacementCanvas
                   items={canvasItems}
                   onChange={updateCanvasPlacement}
                   editable
-                  minHeight={640}
+                  minHeight={720}
                   dark
                 />
               ) : null}
@@ -597,6 +604,7 @@ export function ProjectForm({ project }: { project?: Project }) {
       {showPreview ? (
         <ProjectLayoutPreview
           title={titleDraft}
+          settings={settings}
           blocks={blocks.map((b) =>
             b.type === "image"
               ? {
@@ -606,7 +614,7 @@ export function ProjectForm({ project }: { project?: Project }) {
                   caption: b.caption,
                   canvas: b.canvas,
                 }
-              : { id: b.id, type: "text" as const, content: b.content },
+              : { id: b.id, type: "text" as const, content: b.content, align: b.align },
           )}
           onClose={() => setShowPreview(false)}
         />

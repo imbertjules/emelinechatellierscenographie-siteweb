@@ -13,7 +13,7 @@ export default async function AdminHomeCanvasPage() {
         Une photo par projet (celle marquée « Photo d’accueil »). Placez les vignettes librement
         pour la page d’accueil publique.
       </p>
-      <HomeCanvasForm projects={site.projects} />
+      <HomeCanvasForm projects={site.projects} settings={site.settings} />
     </main>
   );
 }
