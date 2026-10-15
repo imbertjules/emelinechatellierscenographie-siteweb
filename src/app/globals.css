@@ -39,6 +39,25 @@ body {
   font-family: Georgia, "Times New Roman", Times, serif !important;
 }
 
+/*
+ * Homepage legends under each thumb — match pre-canvas production
+ * (was: font-bold text-[16px] leading-tight opacity-90 max-w-md).
+ * Body root is 22.5px; text-base would enlarge these — pin to 16px.
+ */
+.home-caption,
+.home-caption * {
+  font-family: Georgia, "Times New Roman", Times, serif !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  line-height: 1.25 !important;
+}
+.home-caption {
+  margin-top: 0.5rem;
+  max-width: 28rem;
+  color: #fff;
+  opacity: 0.9;
+}
+
 .site-header {
   align-items: center; /* ensure logo and nav share height */
 }

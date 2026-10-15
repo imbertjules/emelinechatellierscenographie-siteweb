@@ -63,7 +63,15 @@ type Props = {
   minHeight?: number;
   dark?: boolean;
   className?: string;
+  /**
+   * Caption under each photo.
+   * Home uses the pre-canvas 16px bold tight look; projects keep the project-page size.
+   */
+  captionClassName?: string;
 };
+
+const DEFAULT_CAPTION_CLASS =
+  "caption-tight mt-2 text-sm md:text-base leading-relaxed typo-georgia opacity-80";
 
 export function PlacementCanvas({
   items,
@@ -72,6 +80,7 @@ export function PlacementCanvas({
   minHeight = 720,
   dark = true,
   className,
+  captionClassName = DEFAULT_CAPTION_CLASS,
 }: Props) {
   const boardRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -327,7 +336,7 @@ export function PlacementCanvas({
             </div>
             {showCaption ? (
               <div
-                className="caption-tight mt-2 text-sm md:text-base leading-relaxed typo-georgia opacity-80"
+                className={captionClassName}
                 style={{ pointerEvents: "none" }}
                 dangerouslySetInnerHTML={{ __html: item.caption! }}
               />
