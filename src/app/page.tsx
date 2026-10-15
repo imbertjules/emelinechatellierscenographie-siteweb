@@ -33,8 +33,8 @@ export default async function HomePage() {
   return (
     <main>
       <SiteHeader settings={site.settings} current="home" />
-      {/* No horizontal padding: board is full-bleed so x=0 / x=100-w touch page edges. */}
-      <section className="w-full py-28 md:py-32">
+      {/* Full-bleed board: x=0/100-w = page edges; y=0 = flush under the fixed nav. */}
+      <section className="home-canvas-section w-full pb-28 md:pb-32">
         {items.length > 0 ? (
           <PlacementCanvas
             items={items}
