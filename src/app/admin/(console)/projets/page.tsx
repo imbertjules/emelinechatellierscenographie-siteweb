@@ -29,7 +29,7 @@ export default async function AdminProjectsPage() {
             <div>
               <Link href={`/admin/projets/${project.id}`}>{project.title}</Link>
               <div style={{ color: "#666", fontSize: 14 }}>
-                {project.showOnHome ? "Sur l’accueil" : "Hors accueil"} · {project.homeWidth ?? "moyenne"} · {project.homeAlign ?? "centre"}
+                {project.showOnHome ? "Sur l’accueil" : "Hors accueil"}
               </div>
             </div>
           </li>

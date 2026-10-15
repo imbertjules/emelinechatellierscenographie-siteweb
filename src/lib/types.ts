@@ -19,18 +19,20 @@ export type ProjectBlock =
       type: "image";
       src: string;
       caption: string;
-      /** @deprecated Prefer canvas placement; kept for older projects. */
-      width?: "full" | "half" | "third";
-      /** @deprecated Prefer canvas placement; kept for older projects. */
-      align?: "left" | "center" | "right";
-      /** Freeform position on the project page canvas. */
+      /** Freeform position on the project page canvas (required in product path; defaults applied on read/save). */
       canvas?: CanvasPlacement;
       /** Marks this photo as the homepage thumbnail. */
       isHomePhoto?: boolean;
+      /** @deprecated Ignored — canvas only. Kept optional so old JSON still parses. */
+      width?: "full" | "half" | "third";
+      /** @deprecated Ignored — canvas only. Kept optional so old JSON still parses. */
+      align?: "left" | "center" | "right";
     }
   | { type: "text"; content: string; align: "left" | "center" | "right" };
 
+/** @deprecated Ignored — homepage always uses homeCanvas. */
 export type HomeProjectWidth = "small" | "medium" | "large" | "full";
+/** @deprecated Ignored — homepage always uses homeCanvas. */
 export type HomeProjectAlign = "left" | "center" | "right";
 
 export type Project = {
@@ -39,9 +41,9 @@ export type Project = {
   title: string;
   showOnHome: boolean;
   homeLayout?: string;
-  /** @deprecated Prefer homeCanvas; kept for older projects. */
+  /** @deprecated Ignored — homepage always uses homeCanvas. */
   homeWidth?: HomeProjectWidth;
-  /** @deprecated Prefer homeCanvas; kept for older projects. */
+  /** @deprecated Ignored — homepage always uses homeCanvas. */
   homeAlign?: HomeProjectAlign;
   /** Freeform placement of this project's home photo on the shared homepage canvas. */
   homeCanvas?: CanvasPlacement;
@@ -97,12 +99,3 @@ export function getHomeImage(project: Project): ProjectImage | undefined {
   return project.images.find((image) => image.src);
 }
 
-export function projectUsesCanvas(project: { content?: ProjectBlock[] }): boolean {
-  return (project.content || []).some(
-    (b) => b.type === "image" && b.src && b.canvas && typeof b.canvas.x === "number",
-  );
-}
-
-export function homeUsesCanvas(projects: Project[]): boolean {
-  return projects.some((p) => p.homeCanvas && typeof p.homeCanvas.x === "number");
-}

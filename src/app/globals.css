@@ -80,7 +80,7 @@ select {
   pointer-events: none;
 }
 
-/* Inside Aperçu: same look, but in document flow of the overlay */
+/* In-flow header for admin live edit (not position:fixed) */
 .site-header--embedded {
   position: absolute;
   top: 10px;

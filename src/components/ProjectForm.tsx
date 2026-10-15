@@ -16,8 +16,6 @@ type DraftImage = {
   type: "image";
   src: string;
   caption: string;
-  width: "full" | "half" | "third";
-  align: "left" | "center" | "right";
   canvas: CanvasPlacement;
   isHomePhoto: boolean;
   file?: File;
@@ -56,8 +54,6 @@ function draftsFrom(project?: Project): DraftBlock[] {
       type: "image" as const,
       src: img.src,
       caption: img.caption,
-      width: "full" as const,
-      align: "center" as const,
     })) ||
     [];
 
@@ -71,8 +67,6 @@ function draftsFrom(project?: Project): DraftBlock[] {
         type: "image" as const,
         src: block.src,
         caption: block.caption,
-        width: block.width || "full",
-        align: block.align || "center",
         canvas,
         isHomePhoto: !!block.isHomePhoto,
       };
@@ -250,8 +244,6 @@ export function ProjectForm({
     formData.append("id", (form.querySelector('input[name="id"]') as HTMLInputElement)?.value || "");
     formData.append("title", (form.querySelector('input[name="title"]') as HTMLInputElement)?.value || "");
     formData.append("order", String((form.querySelector('input[name="order"]') as HTMLInputElement)?.value || "1"));
-    formData.append("homeWidth", (form.querySelector('select[name="homeWidth"]') as HTMLSelectElement)?.value || "medium");
-    formData.append("homeAlign", (form.querySelector('select[name="homeAlign"]') as HTMLSelectElement)?.value || "center");
     if (project?.homeCanvas) {
       formData.append("homeCanvas", JSON.stringify(project.homeCanvas));
     }
@@ -292,9 +284,7 @@ export function ProjectForm({
           type: "image",
           src,
           caption: block.caption,
-          width: block.width,
-          align: block.align,
-          canvas: clampPlacement(block.canvas),
+          canvas: clampPlacement(block.canvas || defaultCanvasPlacement(content.length)),
           isHomePhoto: block.isHomePhoto,
         });
       }
@@ -330,8 +320,6 @@ export function ProjectForm({
         type: "image" as const,
         src: "",
         caption: "",
-        width: "full" as const,
-        align: "center" as const,
         canvas: defaultCanvasPlacement(imageCount),
         isHomePhoto: imageCount === 0,
       },
@@ -427,27 +415,6 @@ export function ProjectForm({
             Ordre sur l’accueil
             <input name="order" type="number" defaultValue={project?.order ?? 1} style={inputStyle} />
           </label>
-
-          <div style={{ display: "grid", gap: 16 }}>
-            <label style={{ display: "grid", gap: 6 }}>
-              Taille vignette (secours sans canevas d’accueil)
-              <select name="homeWidth" defaultValue={project?.homeWidth ?? "medium"} style={inputStyle}>
-                <option value="small">Petite</option>
-                <option value="medium">Moyenne</option>
-                <option value="large">Grande</option>
-                <option value="full">Pleine largeur</option>
-              </select>
-            </label>
-
-            <label style={{ display: "grid", gap: 6 }}>
-              Alignement vignette (secours)
-              <select name="homeAlign" defaultValue={project?.homeAlign ?? "center"} style={inputStyle}>
-                <option value="left">Gauche</option>
-                <option value="center">Centre</option>
-                <option value="right">Droite</option>
-              </select>
-            </label>
-          </div>
 
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input type="checkbox" name="showOnHome" defaultChecked={project?.showOnHome ?? true} />

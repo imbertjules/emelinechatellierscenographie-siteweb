@@ -8,6 +8,8 @@ export type CanvasItem = {
   id: string;
   src: string;
   label?: string;
+  /** HTML caption — rendered under this photo (not under the whole board). */
+  caption?: string;
   placement: CanvasPlacement;
   href?: string;
 };
@@ -42,6 +44,16 @@ function clampResize(originX: number, originY: number, w: number): CanvasPlaceme
   const maxW = Math.min(MAX_W, 100 - originX);
   const nextW = Math.min(maxW, Math.max(MIN_W, w));
   return { x: originX, y: Math.max(0, originY), w: nextW };
+}
+
+function hasCaptionHtml(html?: string) {
+  if (!html) return false;
+  return (
+    html
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .trim().length > 0
+  );
 }
 
 type Props = {
@@ -251,61 +263,71 @@ export function PlacementCanvas({
         const topPx = (item.placement.y / 100) * boardWidth;
         const resizing = mode === "resize" && activeId === item.id;
         const dragging = mode === "drag" && activeId === item.id;
+        const showCaption = hasCaptionHtml(item.caption);
 
         const body = (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={item.src}
-              alt={item.label || ""}
-              draggable={false}
-              style={{
-                width: "100%",
-                height: "auto",
-                display: "block",
-                pointerEvents: "none",
-                boxShadow: dark ? "0 8px 24px rgba(0,0,0,0.45)" : "0 4px 16px rgba(0,0,0,0.12)",
-              }}
-            />
-            {item.label && editable ? (
-              <span
+            <div style={{ position: "relative", width: "100%" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={item.src}
+                alt={item.label || ""}
+                draggable={false}
                 style={{
-                  position: "absolute",
-                  left: 6,
-                  top: 6,
-                  fontSize: 11,
-                  padding: "2px 6px",
-                  background: "rgba(0,0,0,0.65)",
-                  color: "#fff",
-                  maxWidth: "90%",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  width: "100%",
+                  height: "auto",
+                  display: "block",
                   pointerEvents: "none",
+                  boxShadow: dark ? "0 8px 24px rgba(0,0,0,0.45)" : "0 4px 16px rgba(0,0,0,0.12)",
                 }}
-              >
-                {item.label}
-              </span>
-            ) : null}
-            {editable ? (
-              <button
-                type="button"
-                aria-label="Redimensionner"
-                onPointerDown={(e) => beginInteraction(e, item.id, "resize")}
-                style={{
-                  position: "absolute",
-                  right: -8,
-                  bottom: -8,
-                  width: 20,
-                  height: 20,
-                  borderRadius: 2,
-                  border: "2px solid #fff",
-                  background: resizing ? "#fff" : "#111",
-                  cursor: "nwse-resize",
-                  padding: 0,
-                  zIndex: 3,
-                  touchAction: "none",
-                }}
+              />
+              {item.label && editable ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 6,
+                    top: 6,
+                    fontSize: 11,
+                    padding: "2px 6px",
+                    background: "rgba(0,0,0,0.65)",
+                    color: "#fff",
+                    maxWidth: "90%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {item.label}
+                </span>
+              ) : null}
+              {editable ? (
+                <button
+                  type="button"
+                  aria-label="Redimensionner"
+                  onPointerDown={(e) => beginInteraction(e, item.id, "resize")}
+                  style={{
+                    position: "absolute",
+                    right: -8,
+                    bottom: -8,
+                    width: 20,
+                    height: 20,
+                    borderRadius: 2,
+                    border: "2px solid #fff",
+                    background: resizing ? "#fff" : "#111",
+                    cursor: "nwse-resize",
+                    padding: 0,
+                    zIndex: 3,
+                    touchAction: "none",
+                  }}
+                />
+              ) : null}
+            </div>
+            {showCaption ? (
+              <div
+                className="caption-tight mt-2 text-sm md:text-base leading-relaxed typo-georgia opacity-80"
+                style={{ pointerEvents: "none" }}
+                dangerouslySetInnerHTML={{ __html: item.caption! }}
               />
             ) : null}
           </>
@@ -328,11 +350,11 @@ export function PlacementCanvas({
             : item.href
               ? "pointer"
               : "default",
-          // box-shadow (not outline) — stays in the element's paint layer / clip
+          // box-shadow on the image wrapper via selected ring on the item box
           boxShadow: selected
             ? dark
-              ? "0 0 0 2px #fff, 0 8px 24px rgba(0,0,0,0.45)"
-              : "0 0 0 2px #111, 0 4px 16px rgba(0,0,0,0.12)"
+              ? "0 0 0 2px #fff"
+              : "0 0 0 2px #111"
             : undefined,
           // Keep ≤ 10; admin-topbar is 10000 and sits outside the scroll clip
           zIndex: selected || dragging || resizing ? 2 : 1,

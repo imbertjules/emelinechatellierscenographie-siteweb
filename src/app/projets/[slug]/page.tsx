@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { ProjectPublicView, type PublicViewBlock } from "@/components/ProjectPublicView";
+import { defaultCanvasPlacement } from "@/lib/types";
 import { readSite } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -29,33 +30,39 @@ export default async function ProjectPage({
     notFound();
   }
 
+  // Always canvas: migrate legacy images[] / missing canvas to default placements.
+  let imageIndex = 0;
+  const fromContent: PublicViewBlock[] =
+    project.content?.map((block) => {
+      if (block.type === "image") {
+        const placement = block.canvas || defaultCanvasPlacement(imageIndex);
+        imageIndex += 1;
+        return {
+          id: `img-${imageIndex - 1}`,
+          type: "image" as const,
+          src: block.src,
+          caption: block.caption,
+          canvas: placement,
+        };
+      }
+      return {
+        id: `text-${imageIndex}`,
+        type: "text" as const,
+        content: block.content,
+        align: block.align,
+      };
+    }) || [];
+
   const blocks: PublicViewBlock[] =
-    project.content?.map((block, index) =>
-      block.type === "image"
-        ? {
-            id: `img-${index}`,
-            type: "image" as const,
-            src: block.src,
-            caption: block.caption,
-            canvas: block.canvas,
-            width: block.width,
-            align: block.align,
-          }
-        : {
-            id: `text-${index}`,
-            type: "text" as const,
-            content: block.content,
-            align: block.align,
-          },
-    ) ||
-    project.images.map((img, index) => ({
-      id: `legacy-${index}`,
-      type: "image" as const,
-      src: img.src,
-      caption: img.caption,
-      width: index === 0 ? ("full" as const) : index % 2 === 0 ? ("half" as const) : ("third" as const),
-      align: index % 2 === 0 ? ("left" as const) : ("right" as const),
-    }));
+    fromContent.length > 0
+      ? fromContent
+      : project.images.map((img, index) => ({
+          id: `legacy-${index}`,
+          type: "image" as const,
+          src: img.src,
+          caption: img.caption,
+          canvas: defaultCanvasPlacement(index),
+        }));
 
   return <ProjectPublicView title={project.title} blocks={blocks} settings={site.settings} />;
 }

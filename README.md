@@ -16,8 +16,9 @@ Ouvrir [http://localhost:3000](http://localhost:3000) et [http://localhost:3000/
 ## Vercel
 
 1. Importer le repo dans Vercel (framework Next.js).
-2. Variable `ADMIN_PASSWORD`.
-3. Créer un Blob Store sur le projet pour que les images et le contenu survivent en production. Les images du backoffice sont envoyées directement depuis le navigateur vers Blob : elles ne passent pas par le serveur Vercel et ne subissent donc pas sa limite d’envoi. Les fichiers image (JPEG, PNG, WebP, AVIF, HEIC, etc.) sont acceptés ; leur affichage dépend ensuite de la compatibilité du navigateur.
-# emelinechatellierscenographie-siteweb
-# emelinechatellierscenographie-siteweb
-# emelinechatellierscenographie-siteweb
+2. Variables : `ADMIN_PASSWORD`, et si besoin `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` (ou équivalent) pour persister le JSON site et les uploads.
+3. Les images du backoffice passent par `/api/upload` vers **Supabase Storage** (bucket `uploads`). Sans Supabase en local, les fichiers sont écrits sous `public/uploads/` (non persistant sur Vercel).
+
+## Placement
+
+Accueil et pages projet utilisent un **canevas libre** (glisser-déposer). Pas de layout grille « secours ». Les légendes s’affichent sous chaque photo.

@@ -36,13 +36,14 @@ export function HomeCanvasForm({
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
 
-  const items: CanvasItem[] = homeProjects.map((project) => {
+  const items: CanvasItem[] = homeProjects.map((project, index) => {
     const image = getHomeImage(project)!;
     return {
       id: project.id,
       src: image.src,
       label: project.title,
-      placement: placements[project.id] || defaultCanvasPlacement(),
+      caption: image.caption,
+      placement: placements[project.id] || defaultCanvasPlacement(index),
     };
   });
 

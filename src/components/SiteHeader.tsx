@@ -9,7 +9,7 @@ export function SiteHeader({
 }: {
   settings: SiteSettings;
   current?: "home" | "about";
-  /** Use inside Aperçu overlays (avoids fixed-header escaping the dialog). */
+  /** In-flow header (admin live edit) instead of position:fixed. */
   embedded?: boolean;
 }) {
   return (
