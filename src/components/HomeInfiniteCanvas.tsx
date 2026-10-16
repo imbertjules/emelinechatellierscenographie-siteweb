@@ -27,6 +27,14 @@ export function HomeInfiniteCanvas({
   const primedRef = useRef(false);
   const adjustingRef = useRef(false);
 
+  // Public home only: hide the viewport scrollbar while this canvas is mounted.
+  // Wheel / trackpad / touch scroll still work. Admin live edit never mounts this.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("home-no-scrollbar");
+    return () => root.classList.remove("home-no-scrollbar");
+  }, []);
+
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
